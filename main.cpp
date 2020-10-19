@@ -614,7 +614,7 @@ int main(int argc, char* argv[])
 		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 	}
 
-	printf("\ntotal time is %d\n",time(NULL)-startTime);
+	printf("\ntotal time is %d\n", (int)time(0)-startTime);
 	printf("trace time is %d\n",traceStartTime);
 }
 

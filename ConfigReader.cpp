@@ -1,5 +1,3 @@
-#pragma once
-
 #include <stdlib.h>
 #include <cstdio>
 #include <iostream>
@@ -37,21 +35,6 @@ bool Field::GetBool(){
 float Field::GetFloat(){
 	wrongType();
 	return 0.0f;
-}
-
-const fpixel& Field::GetFPixel(){
-		wrongType();
-		return fpixel();
-}
-
-const pixel& Field::GetPixel(){
-	wrongType();
-	return pixel();
-}
-
-const vec3& Field::Get3DVec(){
-	wrongType();
-	return vec3();
 }
 
 const char* Field::GetStr(){
