@@ -22,8 +22,8 @@ inline bool exists (const std::string& name) {
 int save2file(pixel* b,short w, short h, const char* path)
 {	
 	std::ofstream  renderoutfile(path, std::ios::binary);
-	if ( ! renderoutfile) {
-		std::cout << "������: �� ���� ������� �������� ����: " << std::endl;
+	if (!renderoutfile) {
+		std::cout << "Could not create output file" << std::endl;
 		return -2;
     }
 	char buff[18];

@@ -1,8 +1,10 @@
 # PicoRender
 
+*This code is Obsolete*. It was written by me around 2014, when I just started doing graphics.
+
 Very simple raytracer for baking ambient occlusion and [bent normal](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.230.6374&rep=rep1&type=pdf). No dependencies.
 
-This code was written by me around 2014, when I just started doing graphics.
+
 
 Now, it does not have much of a value, but I did minor fixes/cleanup out of curiosity to dig some of my old code.
 
