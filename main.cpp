@@ -6,10 +6,9 @@
 #include <sstream>
 #include <vector>
 #include <time.h>
+#include <thread>
 
-#include <windows.h>
-
-#define THREADCOUNT 4
+#define THREADCOUNT 8
 
 #include "main.h"
 #include "ConfigReader.h"
@@ -24,8 +23,6 @@ bool groundShadow;
 float lightDirX;
 float lightDirY;
 float lightDirZ;
-bool moss;
-bool dust;
 float detailTExMul;
 int bounce;
 bool renderInTex;
@@ -239,10 +236,8 @@ void writeFunction(_3DVec cp, _3DVec n, _3DVec l, int j, int i, int iterk, exeAr
 	arg->fpixelbuff_gi[0][i * width + j].b = v;
 }
 
-DWORD WINAPI renderInTexRutine(LPVOID lpParam)
+bool renderInTexRutine(exeArg* arg)
 {
-
-	exeArg *arg = (exeArg*)lpParam;
 	printf("+");
 	int progress = 0;
 	for (int i = arg->offset; i < arg->count; i += THREADCOUNT)
@@ -271,7 +266,7 @@ DWORD WINAPI renderInTexRutine(LPVOID lpParam)
 		*/
 	}
 	printf("-");
-	return TRUE;
+	return true;
 }
 
 
@@ -466,10 +461,9 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 }
 
 
-DWORD WINAPI renderRutine(LPVOID lpParam)
+bool renderRutine(exeArg *arg)
 {
 	printf("+");
-	exeArg *arg = (exeArg*)lpParam;
 
 	int progress = 0;
 
@@ -499,7 +493,7 @@ DWORD WINAPI renderRutine(LPVOID lpParam)
 			}
 		}
 		printf("-");
-		return TRUE;
+		return true;
 }
 
 
@@ -524,8 +518,6 @@ int main(int argc, char* argv[])
 	lightDirX = config->GetField("lightDirX")->GetFloat();
 	lightDirY = config->GetField("lightDirY")->GetFloat();
 	lightDirZ = config->GetField("lightDirZ")->GetFloat();
-	moss = config->GetField("moss")->GetBool();
-	dust = config->GetField("dust")->GetBool();
 	detailTExMul  = config->GetField("detailTExMul")->GetFloat();
 	sampleCount = config->GetField("sampleCount")->GetInt();
 	bounce = config->GetField("bounce")->GetInt();
@@ -534,8 +526,12 @@ int main(int argc, char* argv[])
 	sampleCount = sampleCount * sampleCount;
 	printf("Sample count:%d\n", sampleCount);
 
-	model* m = loadmodel(argv[1]);
-	texture* tex =  loadtexture(argv[2]);
+	const char* obj_str = config->GetField("obj")->GetStr();
+	const char* tex_str = config->GetField("texture")->GetStr();
+	const char* outfile_prefix = config->GetField("outfile_prefix")->GetStr();
+
+	model* m = loadmodel(obj_str);
+	texture* tex =  loadtexture(tex_str);
 	
 	facelist = new int[m->iface];
 	facelistCount = 0;
@@ -618,8 +614,7 @@ int main(int argc, char* argv[])
 	int traceStartTime = time(NULL);
 
 
-	HANDLE aThread[THREADCOUNT];
-	DWORD ThreadID;
+	std::vector<std::thread> aThreads;
 
 	exeArg args[THREADCOUNT];
 
@@ -638,7 +633,6 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; i < THREADCOUNT; i++)
 	{
-		int portion = height / THREADCOUNT;
 		args[i].boundMax = boundMax;
 		args[i].boundMin = boundMin;
 		args[i].offset = i ;
@@ -659,38 +653,21 @@ int main(int argc, char* argv[])
 		args[i].voxellist = new voxel*[lastVoxelCount * 2];
 		args[i].facelist = new int[m->iface * 2];
 		args[i].facelistCount = 0;
+
 		if (!renderInTex)
 		{
-			aThread[i] = CreateThread(
-				NULL,       // default security attributes
-				0,          // default stack size
-				(LPTHREAD_START_ROUTINE)renderRutine,
-				&args[i],       // no thread function arguments
-				0,          // default creation flags
-				&ThreadID); // receive thread identifier
+			aThreads.emplace_back(renderRutine, &args[i]);
 		}
 		else
 		{
-			aThread[i] = CreateThread(
-				NULL,       // default security attributes
-				0,          // default stack size
-				(LPTHREAD_START_ROUTINE)renderInTexRutine,
-				&args[i],       // no thread function arguments
-				0,          // default creation flags
-				&ThreadID); // receive thread identifier
-
-		}
-		if (aThread[i] == NULL)
-		{
-			printf("CreateThread error: %d\n", GetLastError());
-			return 1;
+			aThreads.emplace_back(renderInTexRutine, &args[i]);
 		}
 	}
 
-	WaitForMultipleObjects(THREADCOUNT, aThread, TRUE, INFINITE);
-
-	for (int i = 0; i < THREADCOUNT; i++)
-		CloseHandle(aThread[i]);
+	for (auto& thread: aThreads)
+	{
+		thread.join();
+	}
 
 	printf("\nend tracing\n");
 	traceStartTime=time(NULL) - traceStartTime;
@@ -711,7 +688,7 @@ int main(int argc, char* argv[])
 			pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j]/max*255;
 		}
 	}
-	save2file(pixelbuff, width, height, (argv[3] + std::string("_normal.tga")).c_str());
+	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_normal.tga")).c_str());
 
 	for (int k = 0; k < bounce;k++)
 	{
@@ -730,7 +707,7 @@ int main(int argc, char* argv[])
 		std::string name = std::string("_diff%d.tga");
 		sprintf(name_, name.c_str(), k);
 		name = name_;
-		save2file(pixelbuff, width, height, (std::string(argv[3]) + name).c_str());
+		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 
 		//gi
 		for (int i = 0; i < height; i++){
@@ -745,7 +722,7 @@ int main(int argc, char* argv[])
 		name = std::string("_gi%d.tga");
 		sprintf(name_, name.c_str(), k);
 		name = name_;
-		save2file(pixelbuff, width, height, (std::string(argv[3]) + name).c_str());
+		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 
 		//gi normal
 		for (int i = 0; i < height; i++){
@@ -763,7 +740,7 @@ int main(int argc, char* argv[])
 		name = std::string("_gi_normal%d.tga");
 		sprintf(name_, name.c_str(), k);
 		name = name_;
-		save2file(pixelbuff, width, height, (std::string(argv[3]) + name).c_str());
+		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 	}
 
 	printf("\ntotal time is %d\n",time(NULL)-startTime);

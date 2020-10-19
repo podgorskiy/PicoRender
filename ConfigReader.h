@@ -72,7 +72,7 @@ class FieldStr: public Field
 {
 public:
 	FieldStr(const char* val);
-	virtual const const char* GetStr();
+	virtual const char* GetStr();
 	std::string val;
 };
 

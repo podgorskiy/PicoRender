@@ -118,7 +118,9 @@ void Config::LoadConfig(const char* filepath)
 	config->clear();
 	FILE * configFile;
 	printf("Loading configuration from %s file\n",filepath);
-	if (fopen_s (&configFile,  filepath,"r")!=0){
+	configFile = fopen(filepath,"r");
+	if (!configFile)
+	{
 		printf ("Missing %s file\n",filepath);
 	}
 	int lineNumber=1;

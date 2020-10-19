@@ -23,7 +23,7 @@ int save2file(pixel* b,short w, short h, const char* path)
 {	
 	std::ofstream  renderoutfile(path, std::ios::binary);
 	if ( ! renderoutfile) {
-		std::cout << "ошибка: не могу открыть выходной файл: " << std::endl;
+		std::cout << "пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: " << std::endl;
 		return -2;
     }
 	char buff[18];
@@ -163,17 +163,16 @@ model* loadmodel(const char* path){
 	m->face_array = (face*)malloc(portion*sizeof(face));
 	int iv=0, ivt=0, ivn=0, iface=0;	
 
-	(&iv,sizeof(int),1,cacheFile);
 	fread(&iv,sizeof(int),1,cacheFile);
 	fread(&ivt,sizeof(int),1,cacheFile);
 	fread(&ivn,sizeof(int),1,cacheFile);
 	fread(&iface,sizeof(int),1,cacheFile);
 	for(int i=0;i<iv;i++)
-		fread_s(&m->position[i],sizeof(_3DVec),sizeof(_3DVec),1,cacheFile);
+		fread(&m->position[i], sizeof(_3DVec),1,cacheFile);
 	for(int i=0;i<ivn;i++)
-		fread_s(&m->normal[i],sizeof(_3DVec),sizeof(_3DVec),1,cacheFile);
+		fread(&m->normal[i], sizeof(_3DVec),1,cacheFile);
 	for(int i=0;i<ivt;i++)
-		fread_s(&m->texcoord[i],sizeof(_2DVec),sizeof(_2DVec),1,cacheFile);
+		fread(&m->texcoord[i], sizeof(_2DVec),1,cacheFile);
 	face_r tmp;
 	for(int i = 0;i<iface;i++)
 	{
