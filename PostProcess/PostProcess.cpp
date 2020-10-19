@@ -9,6 +9,7 @@
 #include <string>
 #include <iostream>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "../main.h"
 #include "../ConfigReader.h"
@@ -20,6 +21,19 @@ float	lightDirZ;
 ///////////////////////////////
 
 Config* config;
+
+uint8_t to8bit(float x)
+{
+	x *= 255.;
+	x = x < 0 ? 0. : x;
+	int r = int(round(x));
+	return r > 255 ? 255 : (r < 0 ? 0 : r);
+}
+
+float gamma(float x)
+{
+	return pow(x, 1. / 2.2);
+}
 
 int main(int argc, char* argv[])
 {
@@ -103,17 +117,18 @@ int main(int argc, char* argv[])
 				+ gi_*ambiant*config->GetField("gin")->GetFloat()
 				+ ambiant*config->GetField("gi")->GetFloat()
 				+config->GetField("ambient")->GetFloat();	
-			int r,g,b;
+			float r,g,b;
 
-			r = diff[i * width + j].r*255*illumination + spec*255;
-			g = diff[i * width + j].g*255*illumination + spec*255;
-			b = diff[i * width + j].b*255*illumination + spec*255;
-			int a = alpha[i * width + j]*255;
+			r = diff[i * width + j].r*illumination + spec;
+			g = diff[i * width + j].g*illumination + spec;
+			b = diff[i * width + j].b*illumination + spec;
 
-			pixelbuff[i * width + j].r = r>255 ? 255 : r;
-			pixelbuff[i * width + j].g = g>255 ? 255 : g;
-			pixelbuff[i * width + j].b = b>255 ? 255 : b;
-			pixelbuff[i * width + j].a = a>255 ? 255 : a;
+			float a = alpha[i * width + j];
+
+			pixelbuff[i * width + j].r = to8bit(gamma(r));
+			pixelbuff[i * width + j].g = to8bit(gamma(g));
+			pixelbuff[i * width + j].b = to8bit(gamma(b));
+			pixelbuff[i * width + j].a = to8bit(a);
 
 		}
 	}
