@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
 	atexture* diffTex = loadatexture(config->GetField("diffTex")->GetStr());
 	atexture* normalTex = loadatexture(config->GetField("normalTex")->GetStr());
 	atexture* gi_normalTex = loadatexture(config->GetField("gi_normalTex")->GetStr());
+	const char* outfile = config->GetField("outfile")->GetStr();
 	assert(diffTex->height == normalTex->height);
 	assert(diffTex->width == normalTex->width);
 	assert(diffTex->height == gi_normalTex->height);
@@ -116,5 +117,5 @@ int main(int argc, char* argv[])
 
 		}
 	}
-	save2file(pixelbuff,width,height,argv[5]);
+	save2file(pixelbuff,width,height,outfile);
 }

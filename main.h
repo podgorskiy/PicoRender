@@ -216,13 +216,11 @@ float frand(float a, float b);
 
 
 
-//�������� ������������ ��������� �����
 #define SB_GET_LINE(a,b,c,p1,p2)	\
 	a = p1.y - p2.y; \
 	b = p2.x - p1.x; \
 	c = p1.x*p2.y - p2.x*p1.y;
 
-//����� ����������� ����� � ��������������� � ��� �� ����� �������
 #define SB_GET_CLOTHEST_POINT(a,b,c,p,cp) \
 {\
 	float32 c1 = b*p.x - a*p.y; \
@@ -231,7 +229,6 @@ float frand(float a, float b);
 }
 
 
-//���������, ����������� �� ��������� ����� �������
 #define SB_POINT_IN_SEGMENT(p1,p2,c) \
 	(\
 	(((p2.x >= c.x) && (c.x >= p1.x)) || \

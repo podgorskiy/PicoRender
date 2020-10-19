@@ -18,17 +18,12 @@ short width;
 short height;
 short voxelCount;
 short sampleCount;
-bool groundOcclusion;
-bool groundShadow;
 float lightDirX;
 float lightDirY;
 float lightDirZ;
-float detailTExMul;
 int bounce;
 bool renderInTex;
 ///////////////////////////////
-
-float theFlorY;
 
 int* facelist; 
 int facelistCount;
@@ -513,12 +508,9 @@ int main(int argc, char* argv[])
 	width = config->GetField("width")->GetInt();
 	height = config->GetField("height")->GetInt();
 	voxelCount = config->GetField("voxelCount")->GetInt();
-	groundOcclusion = config->GetField("groundOcclusion")->GetBool();
-	groundShadow = config->GetField("groundShadow")->GetBool();
 	lightDirX = config->GetField("lightDirX")->GetFloat();
 	lightDirY = config->GetField("lightDirY")->GetFloat();
 	lightDirZ = config->GetField("lightDirZ")->GetFloat();
-	detailTExMul  = config->GetField("detailTExMul")->GetFloat();
 	sampleCount = config->GetField("sampleCount")->GetInt();
 	bounce = config->GetField("bounce")->GetInt();
 	renderInTex = config->GetField("renderInTex")->GetBool();
@@ -1139,7 +1131,6 @@ void preparemodel(model* m, _3DVec& boundMax, _3DVec& boundMin){
 		if( m->position[i].y < boundMin.y) boundMin.y = m->position[i].y;
 		if( m->position[i].z < boundMin.z) boundMin.z = m->position[i].z;
 	}
-	theFlorY = boundMin.y;
 	_3DVec size = (boundMax - boundMin)/2.0f;
 	_3DVec pos  = (boundMax + boundMin)/2.0f;
 	float scale = config->GetField("scale")->GetFloat();
