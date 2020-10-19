@@ -1,14 +1,9 @@
 #pragma once
-#include <float.h>
-#include <math.h>
-#include <glm/glm.hpp>
-
-#define    maxFloat        FLT_MAX
-#define    epsilon        FLT_EPSILON
+#include "types.h"
 
 #define pi 3.1415926535897932384626433832795
 
-inline void transpose(glm::dvec3* v1, glm::dvec3* v2, glm::dvec3* v3)
+inline void transpose(vec3* v1, vec3* v2, vec3* v3)
 {
 	double tmp = v1->y;
 	v1->y = v2->x;
@@ -58,9 +53,9 @@ struct face {
 	int ivn[3];
 	double a,b,c,d;
 	double size_;
-	glm::dvec3 size;
-	glm::dvec3 center;
-	glm::dvec3 normal;
+	vec3 size;
+	vec3 center;
+	vec3 normal;
 	int key;
 	face(){};
 };
@@ -72,18 +67,18 @@ struct face_r {
 	face_r(){};
 };
 struct intersection{
-	glm::dvec3 cp;
-	glm::dvec3 normal;
-	glm::dvec2 texcoord;
+	vec3 cp;
+	vec3 normal;
+	vec2 texcoord;
 
 	int face;
 	double distance;
 	intersection(){distance = 1e16; face = -1;}
 };
 struct model{
-	glm::dvec3* position;
-	glm::dvec3* normal;
-	glm::dvec2* texcoord;
+	vec3* position;
+	vec3* normal;
+	vec2* texcoord;
 	face*   face_array;
 	int iv, ivt, ivn, iface;
 	model():position(NULL),normal(NULL),texcoord(NULL),face_array(NULL),iv(0),ivt(0),ivn(0),iface(0){};
@@ -100,24 +95,24 @@ struct atexture{
 	int height;
 };
 struct camera{
-	glm::dvec3 position;
-	glm::dvec3 rotation;
-	camera(glm::dvec3 position, glm::dvec3 rotation):position(position),rotation(rotation){};
+	vec3 position;
+	vec3 rotation;
+	camera(vec3 position, vec3 rotation):position(position),rotation(rotation){};
 };
 
 struct voxel{
 	std::vector<int> faces;
-	glm::dvec3 boundMax;
-	glm::dvec3 boundMin;
-	glm::dvec3 center;
-	glm::dvec3 size;
+	vec3 boundMax;
+	vec3 boundMin;
+	vec3 center;
+	vec3 size;
 	bool last;
 	bool empty;
 	voxel* voxels[8];
 	int id;
 };
 
-inline bool check(glm::dvec3 cp, glm::dvec3 v1, glm::dvec3 v2, glm::dvec3 planev)
+inline bool check(vec3 cp, vec3 v1, vec3 v2, vec3 planev)
 {
 	return glm::dot(glm::cross(v2 - v1, cp - v1), planev) > 0;
 }
@@ -129,16 +124,16 @@ texture* loadtexture(const char* path);
 atexture* loadatexture(const char* path);
 
 //tracer
-void makeBound(model* m, int triag, glm::dvec3& boundMax, glm::dvec3& boundMin);
+void makeBound(model* m, int triag, vec3& boundMax, vec3& boundMin);
 bool triagInVoxel(model* m, int triag, voxel* v);
 void sortTriags(model* m, voxel* root);
 void createVoxels(voxel* voxels, int count);
 
-inline bool IsRayInV(const voxel&vox, const glm::dvec3& v, const glm::dvec3& p);
-void createFaceList(const glm::dvec3& v, const glm::dvec3& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
-void preparemodel(model* m, glm::dvec3& boundMax, glm::dvec3& boundMin);
+inline bool IsRayInV(const voxel&vox, const vec3& v, const vec3& p);
+void createFaceList(const vec3& v, const vec3& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
+void preparemodel(model* m, vec3& boundMax, vec3& boundMin);
 
-intersection findintersection(model* m, glm::dvec3 v, glm::dvec3 p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
+intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
 
 
 #define SB_GET_LINE(a,b,c,p1,p2)	\

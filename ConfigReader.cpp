@@ -49,9 +49,9 @@ const pixel& Field::GetPixel(){
 	return pixel();
 }
 
-const glm::vec3& Field::Get3DVec(){
+const vec3& Field::Get3DVec(){
 	wrongType();
-	return glm::vec3();
+	return vec3();
 }
 
 const char* Field::GetStr(){
@@ -91,8 +91,8 @@ const fpixel& FieldFPixel::GetFPixel()
 	return val;
 }
 
-Field3DVec::Field3DVec(glm::vec3 val):val(val){}
-const glm::vec3& Field3DVec::Get3DVec()
+Field3DVec::Field3DVec(vec3 val):val(val){}
+const vec3& Field3DVec::Get3DVec()
 {
 	return val;
 }
@@ -145,7 +145,7 @@ void Config::LoadConfig(const char* filepath)
 			(*config)[std::string(s_name)] = new FieldFloat(atof(s1));
 		}
 		if (strcmp(s_type,"3dvec")==0){
-			(*config)[std::string(s_name)] = new Field3DVec(glm::vec3(atof(s1),atof(s2),atof(s3)));
+			(*config)[std::string(s_name)] = new Field3DVec(vec3(atof(s1),atof(s2),atof(s3)));
 		}
 		if (strcmp(s_type,"fpixel")==0){
 			(*config)[std::string(s_name)] = new FieldFPixel(fpixel(atof(s1),atof(s2),atof(s3)));

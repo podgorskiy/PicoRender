@@ -1,5 +1,6 @@
 #pragma once
 
+#include "types.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <cassert>
@@ -16,7 +17,7 @@ public:
 	virtual float GetFloat();
 	virtual	const fpixel& GetFPixel();
 	virtual const pixel& GetPixel();
-	virtual const glm::vec3& Get3DVec();
+	virtual const vec3& Get3DVec();
 	virtual const char* GetStr();
 };
 
@@ -63,9 +64,9 @@ public:
 class Field3DVec: public Field
 {
 public:
-	Field3DVec(glm::vec3 val);
-	virtual const glm::vec3& Get3DVec();
-	glm::vec3 val;
+	Field3DVec(vec3 val);
+	virtual const vec3& Get3DVec();
+	vec3 val;
 };
 
 class FieldStr: public Field
