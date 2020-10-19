@@ -10,19 +10,6 @@
 #include <iostream>
 #include <stdio.h>
 
-std::string exec(const char* cmd) {
-    FILE* pipe = _popen(cmd, "r");
-    if (!pipe) return "ERROR";
-    char buffer[128];
-    std::string result = "";
-    while(!feof(pipe)) {
-    	if(fgets(buffer, 128, pipe) != NULL)
-    		result += buffer;
-    }
-    _pclose(pipe);
-    return result;
-}
-
 #include "../main.h"
 #include "../ConfigReader.h"
 
@@ -42,15 +29,14 @@ int main(int argc, char* argv[])
 	printf("reading data\n");
 
 	config = new Config;
-	config->LoadConfig(argv[1]);
-	//groundOcclusion = config->GetField("groundOcclusion")->GetBool();
-	//groundShadow = config->GetField("groundShadow")->GetBool();
+	config->LoadConfig("config_post.txt");
+
 	lightDirX = config->GetField("lightDirX")->GetFloat();
 	lightDirY = config->GetField("lightDirY")->GetFloat();
 	lightDirZ = config->GetField("lightDirZ")->GetFloat();
-	atexture* diffTex = loadatexture(argv[2]);
-	atexture* normalTex = loadatexture(argv[3]);
-	atexture* gi_normalTex = loadatexture(argv[4]);
+	atexture* diffTex = loadatexture(config->GetField("diffTex")->GetStr());
+	atexture* normalTex = loadatexture(config->GetField("normalTex")->GetStr());
+	atexture* gi_normalTex = loadatexture(config->GetField("gi_normalTex")->GetStr());
 	assert(diffTex->height == normalTex->height);
 	assert(diffTex->width == normalTex->width);
 	assert(diffTex->height == gi_normalTex->height);
@@ -141,5 +127,4 @@ int main(int argc, char* argv[])
 		}
 	}
 	save2file(pixelbuff,width,height,argv[5]);
-	exec((std::string("..\\converter\\converter.exe -tga ") + std::string(argv[5]) + std::string(" ") + std::string(argv[5])).c_str());
 }

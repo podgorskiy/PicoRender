@@ -26,13 +26,16 @@ add_compile_options(
 configure_file(teapot.obj teapot.obj COPYONLY)
 configure_file(wood.tga wood.tga COPYONLY)
 configure_file(config.txt config.txt  COPYONLY)
+configure_file(config_post.txt config_post.txt  COPYONLY)
 
 file(GLOB SOURCES *.cpp  *.c)
 
-add_executable(PicoRender ${SOURCES} ${TESTS})
+add_executable(PicoRender ${SOURCES})
+
+add_executable(PostProcess PostProcess/PostProcess.cpp ConfigReader.cpp fileio.cpp)
 
 if(MSVC)
 else()
-	target_link_libraries(pthread)
-	target_link_options(PicoRender PRIVATE -static-libstdc++  -pthread)
+	target_link_libraries(PicoRender PRIVATE pthread)
+	target_link_options(PicoRender PRIVATE -static-libstdc++)
 endif()
