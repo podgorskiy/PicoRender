@@ -234,12 +234,14 @@ void writeFunction(_3DVec cp, _3DVec n, _3DVec l, int j, int i, int iterk, exeAr
 bool renderInTexRutine(exeArg* arg)
 {
 	printf("+");
+	fflush(stdout);
 	int progress = 0;
 	for (int i = arg->offset; i < arg->count; i += THREADCOUNT)
 	{
 		if (((i)* 80 / THREADCOUNT) / (arg->count) >progress){
 			progress++;
 			printf(".");
+			fflush(stdout);
 		}
 		renderTriangle(arg->m, arg->lightmapSize, i, arg->iterk, arg, renderFunction);
 		/*
@@ -261,6 +263,7 @@ bool renderInTexRutine(exeArg* arg)
 		*/
 	}
 	printf("-");
+	fflush(stdout);
 	return true;
 }
 
@@ -459,6 +462,7 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 bool renderRutine(exeArg *arg)
 {
 	printf("+");
+	fflush(stdout);
 
 	int progress = 0;
 
@@ -469,6 +473,7 @@ bool renderRutine(exeArg *arg)
 		if (((i)* 80 / THREADCOUNT) / (arg->height) >progress){
 				progress++;
 				printf(".");
+				fflush(stdout);
 			}
 			float betta = (float)i / (float)(height - 1) * boundMax.y + (height - i - 1) / (float)(height - 1) * boundMin.y;
 			for (int j = 0; j<width; j++){
@@ -488,6 +493,7 @@ bool renderRutine(exeArg *arg)
 			}
 		}
 		printf("-");
+		fflush(stdout);
 		return true;
 }
 
