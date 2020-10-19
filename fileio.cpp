@@ -78,9 +78,9 @@ model* loadmodel(const char* path){
 
 	int portion = 2048*128;
 	m= new model;
-	m->position = (glm::vec3*)malloc(portion*sizeof(glm::vec3));
-	m->normal   = (glm::vec3*)malloc(portion*sizeof(glm::vec3));
-	m->texcoord = (glm::vec2*)malloc(portion*sizeof(glm::vec2));
+	m->position = (glm::dvec3*)malloc(portion*sizeof(glm::dvec3));
+	m->normal   = (glm::dvec3*)malloc(portion*sizeof(glm::dvec3));
+	m->texcoord = (glm::dvec2*)malloc(portion*sizeof(glm::dvec2));
 	m->face_array = (face*)malloc(portion*sizeof(face));
 	int iv=0, ivt=0, ivn=0, iface=0;		
 	std::ifstream  objfile(path);
@@ -93,18 +93,18 @@ model* loadmodel(const char* path){
 		if(type == "v"){
 			float x, y, z;
 			in >> x >> y >> z;      
-			m->position[iv++] = glm::vec3(x,y,-z);
+			m->position[iv++] = glm::dvec3(x,y,-z);
 		}
 		if(type == "vn"){
 			float x, y, z;
 			in >> x >> y >> z;      
-			m->normal[ivn++] = glm::vec3(x,y,-z);
+			m->normal[ivn++] = glm::dvec3(x,y,-z);
 		}
 		if(type == "vt")				
 		{
 			float u, v;
 			in >> u >> v;      
-			m->texcoord[ivt++] = glm::vec2(u,v);
+			m->texcoord[ivt++] = glm::dvec2(u,v);
 		}
 		if(type == "f"){
 			std::string v1,v2,v3;
@@ -130,11 +130,11 @@ model* loadmodel(const char* path){
 	fwrite(&ivn,sizeof(int),1,cacheFile);
 	fwrite(&iface,sizeof(int),1,cacheFile);
 	for(int i=0;i<iv;i++)
-		fwrite(&m->position[i],sizeof(glm::vec3),1,cacheFile);
+		fwrite(&m->position[i],sizeof(glm::dvec3),1,cacheFile);
 	for(int i=0;i<ivn;i++)
-		fwrite(&m->normal[i],sizeof(glm::vec3),1,cacheFile);
+		fwrite(&m->normal[i],sizeof(glm::dvec3),1,cacheFile);
 	for(int i=0;i<ivt;i++)
-		fwrite(&m->texcoord[i],sizeof(glm::vec2),1,cacheFile);
+		fwrite(&m->texcoord[i],sizeof(glm::dvec2),1,cacheFile);
 	face_r tmp;
 	for(int i = 0;i<iface;i++)
 	{
@@ -157,9 +157,9 @@ model* loadmodel(const char* path){
 		
 	int portion = 2048*128;
 	m= new model;
-	m->position = (glm::vec3*)malloc(portion*sizeof(glm::vec3));
-	m->normal   = (glm::vec3*)malloc(portion*sizeof(glm::vec3));
-	m->texcoord = (glm::vec2*)malloc(portion*sizeof(glm::vec2));
+	m->position = (glm::dvec3*)malloc(portion*sizeof(glm::dvec3));
+	m->normal   = (glm::dvec3*)malloc(portion*sizeof(glm::dvec3));
+	m->texcoord = (glm::dvec2*)malloc(portion*sizeof(glm::dvec2));
 	m->face_array = (face*)malloc(portion*sizeof(face));
 	int iv=0, ivt=0, ivn=0, iface=0;	
 
@@ -168,11 +168,11 @@ model* loadmodel(const char* path){
 	fread(&ivn,sizeof(int),1,cacheFile);
 	fread(&iface,sizeof(int),1,cacheFile);
 	for(int i=0;i<iv;i++)
-		fread(&m->position[i], sizeof(glm::vec3),1,cacheFile);
+		fread(&m->position[i], sizeof(glm::dvec3),1,cacheFile);
 	for(int i=0;i<ivn;i++)
-		fread(&m->normal[i], sizeof(glm::vec3),1,cacheFile);
+		fread(&m->normal[i], sizeof(glm::dvec3),1,cacheFile);
 	for(int i=0;i<ivt;i++)
-		fread(&m->texcoord[i], sizeof(glm::vec2),1,cacheFile);
+		fread(&m->texcoord[i], sizeof(glm::dvec2),1,cacheFile);
 	face_r tmp;
 	for(int i = 0;i<iface;i++)
 	{
