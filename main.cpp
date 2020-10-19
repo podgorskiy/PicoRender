@@ -147,12 +147,9 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 
 void renderFunction(_3DVec cp, _3DVec n, _3DVec l, int i_x, int i_y, int iterk, exeArg* arg, int treug)
 {
-	for (int fi = 0; fi < iterk; fi++)
+	for (int i = 0; i < iterk; i++)
 	{
-		for (int teta = 0; teta < iterk; teta++)
-		{
-			Trace(cp, _3DVec(0, 0, 0), n, i_y, i_x, arg);
-		}
+		Trace(cp, _3DVec(0, 0, 0), n, i_y, i_x, arg);
 	}
 }
 
@@ -301,8 +298,8 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 		floatToIntF(_2DVec(0, ytop), lightmapSize, tmp, f_ytop);
 		floatToIntF(_2DVec(0, ybottom), lightmapSize, tmp, f_ybottom);
 
-		int i_ytop = (int)round(f_ytop + 1);
-		int i_ybottom = (int)round(f_ybottom - 1);
+		int i_ytop = (int)round(f_ytop);
+		int i_ybottom = (int)round(f_ybottom);
 
 		for (int i_y = i_ytop; i_y >= i_ybottom; i_y--)
 		{
@@ -319,8 +316,8 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 			floatToIntF(_2DVec(d_xl, 0), lightmapSize, f_xl, tmp);
 			floatToIntF(_2DVec(d_xr, 0), lightmapSize, f_xr, tmp);
 
-			int i_xl = (int)round(f_xl-1);
-			int i_xr = (int)round(f_xr + 1);
+			int i_xl = (int)round(f_xl);
+			int i_xr = (int)round(f_xr);
 
 			for (int i_x = i_xl; i_x <= i_xr; i_x++)
 			{
@@ -385,17 +382,15 @@ bool renderRutine(exeArg *arg)
 			float betta = (float)i / (float)(height - 1) * boundMax.y + (height - i - 1) / (float)(height - 1) * boundMin.y;
 			for (int j = 0; j<width; j++){
 				float alpha = (float)j / (float)(width - 1) * boundMax.x + (width - j - 1) / (float)(width - 1) * boundMin.x;
-				int iterK = sqrt(sampleCount);
-				for (int fi = 0; fi < iterK; fi++)
+				int iterK = sampleCount;
+				for (int k = 0; k < iterK; k++)
 				{
-					for (int teta = 0; teta < iterK; teta++)
-					{
-						float dx = rnd::rand(-0.5, 0.5) * 1.1f;
-						float dy = rnd::rand(-0.5, 0.5) * 1.1f;
-						_3DVec pos(alpha + dx*(boundMax.x - boundMin.x) / width, betta + dy*(boundMax.y - boundMin.y) / height, -1000.0);
-						_3DVec v(0, 0, 1.0f);
-						Trace(pos, v, _3DVec(1.0f,0.0f,0.0f), i, j, arg);
-					}
+					float dx = rnd::rand(-0.5, 0.5) * 1.1f;
+					float dy = rnd::rand(-0.5, 0.5) * 1.1f;
+					_3DVec pos(alpha + dx * (boundMax.x - boundMin.x) / width,
+					           betta + dy * (boundMax.y - boundMin.y) / height, -1000.0);
+					_3DVec v(0, 0, 1.0f);
+					Trace(pos, v, _3DVec(1.0f, 0.0f, 0.0f), i, j, arg);
 				}
 			}
 		}
@@ -427,8 +422,6 @@ int main(int argc, char* argv[])
 	sampleCount = config->GetField("sampleCount")->GetInt();
 	bounce = config->GetField("bounce")->GetInt();
 	renderInTex = config->GetField("renderInTex")->GetBool();
-	sampleCount = sqrt(sampleCount);
-	sampleCount = sampleCount * sampleCount;
 	printf("Sample count:%d\n", sampleCount);
 
 	const char* obj_str = config->GetField("obj")->GetStr();
@@ -524,7 +517,7 @@ int main(int argc, char* argv[])
 		args[i].m = m;
 		args[i].tex = tex;
 		args[i].count = m->iface;
-		args[i].iterk = sqrt(sampleCount);
+		args[i].iterk = sampleCount;
 		args[i].lightmapSize = height;
 		args[i].fpixelbuff_count = fpixelbuff_count;
 		args[i].fpixelbuff_diff = fpixelbuff_diff;
