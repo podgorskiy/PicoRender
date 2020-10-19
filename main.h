@@ -119,6 +119,8 @@ struct _2DVec {
 	_2DVec(float x, float y) :x(x), y(y){};
 	void Set(const float& x_, const float& y_) { x = x_; y = y_; }
 };
+inline _2DVec operator * (const _2DVec& a, const double& s){ return _2DVec(s * a.x, s * a.y); }
+
 struct face {
 	int iv[3];
 	int ivt[3];
@@ -128,8 +130,6 @@ struct face {
 	_3DVec size;
 	_3DVec center;
 	_3DVec normal;
-	//_3DVec vcenter;
-	//_3DVec vsize;
 	int key;
 	face(){};
 };
@@ -211,9 +211,12 @@ void preparemodel(model* m, _3DVec& boundMax, _3DVec& boundMin);
 intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
 
 //ranom generator
-int _rand(void);
-float frand(float a, float b);  
-
+namespace rnd
+{
+	uint32_t _rand();
+	double rand();
+	double rand(float a, float b);
+}
 
 
 #define SB_GET_LINE(a,b,c,p1,p2)	\

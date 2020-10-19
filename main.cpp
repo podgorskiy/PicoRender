@@ -25,18 +25,11 @@ int bounce;
 bool renderInTex;
 ///////////////////////////////
 
-int* facelist; 
-int facelistCount;
-int* voxellist; 
-int voxellistCount;
-
 voxel* rvoxel;
 int voxelsCount;
 int lastVoxelCount;
 int everageFaceInVoxel;
 int maxFaceInVoxel;
-
-float derror;
 
 voxel* voxelPool;
 int voxelPoolCount;
@@ -60,11 +53,10 @@ struct exeArg
 
 	fpixel** fpixelbuff_diff;
 	fpixel* fpixelbuff_normal;
-	fpixel* fpixelbuff_depth;
+	float* fpixelbuff_depth;
 	fpixel** fpixelbuff_gi;
 	_3DVec** fpixelbuff_gi_normal;
 	float* fpixelbuff_alpha;
-	float* fpixelbuff_shadow;
 	int**	fpixelbuff_count;
 	
 	texture* tex;
@@ -74,27 +66,21 @@ struct exeArg
 
 	exeArg(){};
 	int* facelist;
-	int facelistCount;
 	voxel** voxellist;
-	int voxellistCount;
 };
 
-inline const _3DVec& GetBouncedRay(_3DVec x)
+
+_3DVec lambertNoTangent(_3DVec normal)
 {
-	bool ok = false;
-	_3DVec rand_v;
-
-	while (!ok)
-	{
-		ok = true;
-		rand_v = _3DVec(50 - _rand() % 100, 50 - _rand() % 100, 50 - _rand() % 100);
-		if (rand_v*x <= 0)
-			ok = false;
-	}
-	rand_v.Normalize();
-	return rand_v;
+    _2DVec uv(rnd::rand(), rnd::rand());
+    float theta = 2.0 * pi * uv.x;
+    uv.y = 2.0 * uv.y - 1.0;
+    _2DVec p = _2DVec(cos(theta), sin(theta)) * sqrt(1.0 - uv.y * uv.y);
+    _3DVec spherePoint = _3DVec(p.x, p.y, uv.y);
+    spherePoint += normal;
+    spherePoint.Normalize();
+    return spherePoint;
 }
-
 
 inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg)
 {
@@ -107,11 +93,11 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 
 	fpixel lightColor(1.0,1.0,1.0);
 
-	if (renderInTex == false)
+	if (!renderInTex)
 	{
 		is = findintersection(m, v, pos, facelist, facelistCount, voxellist, voxellistCount);
 	}
-	else //we assume that we already have point of intersection of imaginary ray with serface
+	else //we assume that we already have point of intersection of imaginary ray with surface
 	{
 		is.cp = pos;
 		is.face = 0;
@@ -124,34 +110,12 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 		if (is.face != -1){
 			arg->fpixelbuff_count[k][i * width + j] += 1;
 
-			bool ok = false;
-			_3DVec rand_v;
-
-			//_3DVec l = _3DVec(1.0, 1.0, 1.0);
-			//l.Normalize();
-
-			//if (is.normal * l < 0)
-			//	return;
-			while (!ok)
-			{
-				ok = true;
-				rand_v = _3DVec(50 - _rand() % 100, 50 - _rand() % 100, 50 - _rand() % 100);
-				if (rand_v*is.normal <= 0)
-					ok = false;
-				rand_v.Normalize();
-				//if (rand_v * l < 0.99)
-				//	ok = false;
-			}
-			if (renderInTex && k == 0)
-			{
-				//rand_v = v;  //we already have psevdo random optimixed direction for first bounce
-			}
-			rand_v.Normalize();
+			_3DVec rand_v = lambertNoTangent(is.normal);
 
 			intersection ris = findintersection(m, rand_v, is.cp, facelist, facelistCount, voxellist, voxellistCount);
 
 			if (ris.face == -1){
-				arg->fpixelbuff_gi[k][i * width + j] += 2.0f * rand_v * is.normal;
+				arg->fpixelbuff_gi[k][i * width + j] += 1.0f;
 				arg->fpixelbuff_gi_normal[k][i * width + j] += rand_v;
 			}
 			int u = ((int)(is.texcoord.x*arg->tex->width)) % arg->tex->width;
@@ -187,48 +151,9 @@ void renderFunction(_3DVec cp, _3DVec n, _3DVec l, int i_x, int i_y, int iterk, 
 	{
 		for (int teta = 0; teta < iterk; teta++)
 		{
-			float fi_ = 2 * pi * (fi / (float)iterk + (50 - _rand() % 100) / 100.0f / (float)iterk);
-
-			float teta_ = 2 * acosf(sqrtf(1.0f - (teta / (float)iterk + (50 - _rand() % 100) / 100.0f / (float)iterk)));
-			_3DVec rand_v(
-				sinf(teta_)*cosf(fi_),
-				sinf(teta_)*sinf(fi_),
-				cosf(teta_));
-			if ((rand_v*n > 0))
-			{
-				Trace(cp, rand_v, n, i_y, i_x, arg);
-			}
+			Trace(cp, _3DVec(0, 0, 0), n, i_y, i_x, arg);
 		}
 	}
-}
-
-float *a0, *a1, *a2;
-float *x2,*y2,*z2, *yx, *zx, *yz, *fx,*fy,*fz;
-
-void approxFunction(_3DVec cp, _3DVec n, _3DVec l, int j, int i, int iterk, exeArg* arg, int t)
-{
-	float v = arg->fpixelbuff_gi[0][i * width + j].r / arg->fpixelbuff_count[0][i * width + j];
-	x2[t] += l.x*l.x;
-	y2[t] += l.y*l.y;
-	z2[t] += l.z*l.z;
-	yx[t] += l.y*l.x;
-	zx[t] += l.z*l.x;
-	yz[t] += l.y*l.z;
-	fx[t] += l.x*v;
-	fy[t] += l.y*v;
-	fz[t] += l.z*v;
-}
-void writeFunction(_3DVec cp, _3DVec n, _3DVec l, int j, int i, int iterk, exeArg* arg, int t)
-{
-	arg->fpixelbuff_count[0][i * width + j] = 1;
-	float v = a0[t] * l.x + a1[t] * l.y + a2[t] * l.z;
-	if (v > 1.0f)
-		v = 1.0f;
-	if (v < 0.0f)
-		v = 0.0f;
-	arg->fpixelbuff_gi[0][i * width + j].r = v;
-	arg->fpixelbuff_gi[0][i * width + j].g = v;
-	arg->fpixelbuff_gi[0][i * width + j].b = v;
 }
 
 bool renderInTexRutine(exeArg* arg)
@@ -244,23 +169,6 @@ bool renderInTexRutine(exeArg* arg)
 			fflush(stdout);
 		}
 		renderTriangle(arg->m, arg->lightmapSize, i, arg->iterk, arg, renderFunction);
-		/*
-		x2 = 0;
-		y2 = 0;
-		z2 = 0;
-		yx = 0;
-		yz = 0;
-		zx = 0;
-		fx = 0;
-		fy = 0;
-		fz = 0;
-		renderTriangle(arg->m, arg->lightmapSize, i, arg->iterk, arg, approxFunction);
-		float d = z2[i] * yx[i] * yx[i] - 2 * yx[i] * yz[i] * zx[i] + x2[i] * yz[i] * yz[i] + y2[i] * zx[i] * zx[i] - x2[i] * y2[i] * z2[i];
-		a0[i] = (fx[i] * (yz[i] * yz[i] - y2[i] * z2[i]) - fz[i] * (yx[i] * yz[i] - y2[i] * zx[i]) + fy[i] * (yx[i] * z2[i] - yz[i] * zx[i])) / d;
-		a1[i] = (fy[i] * (zx[i] * zx[i] - x2[i] * z2[i]) + fz[i] * (x2[i] * yz[i] - yx[i] * zx[i]) + fx[i] * (yx[i] * z2[i] - yz[i] * zx[i])) / d;
-		a2[i] = (fz[i] * (yx[i] * yx[i] - x2[i] * y2[i]) + fy[i] * (x2[i] * yz[i] - yx[i] * zx[i]) - fx[i] * (yx[i] * yz[i] - y2[i] * zx[i])) / d;
-		renderTriangle(arg->m, arg->lightmapSize, i, arg->iterk, arg, writeFunction);
-		*/
 	}
 	printf("-");
 	fflush(stdout);
@@ -451,7 +359,6 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 					_3DVec n(nx, ny, nz);
 					n.Normalize();
 					f(cp, n, l, i_x, i_y, iterk, arg, i);
-
 				}
 			}
 		}
@@ -483,8 +390,8 @@ bool renderRutine(exeArg *arg)
 				{
 					for (int teta = 0; teta < iterK; teta++)
 					{
-						float dx = (50 - _rand() % 100) / 100.0f*1.1f;
-						float dy = (50 - _rand() % 100) / 100.0f*1.1f;
+						float dx = rnd::rand(-0.5, 0.5) * 1.1f;
+						float dy = rnd::rand(-0.5, 0.5) * 1.1f;
 						_3DVec pos(alpha + dx*(boundMax.x - boundMin.x) / width, betta + dy*(boundMax.y - boundMin.y) / height, -1000.0);
 						_3DVec v(0, 0, 1.0f);
 						Trace(pos, v, _3DVec(1.0f,0.0f,0.0f), i, j, arg);
@@ -530,9 +437,6 @@ int main(int argc, char* argv[])
 
 	model* m = loadmodel(obj_str);
 	texture* tex =  loadtexture(tex_str);
-	
-	facelist = new int[m->iface];
-	facelistCount = 0;
 
 	_3DVec boundMax;
 	_3DVec boundMin;
@@ -553,9 +457,7 @@ int main(int argc, char* argv[])
 	vcount = pow(vcount,3);
 	voxelPool = new voxel[2*vcount];
 	voxelPoolCount = 0;
-	
-	voxellist = new int[2 * vcount];
-	
+
 	printf("generating voxels\n");
 	createVoxels(rvoxel,voxelCount);
 
@@ -588,9 +490,8 @@ int main(int argc, char* argv[])
 		fpixelbuff_gi_normal[i] = new _3DVec[2 * width*height];
 	}
 	fpixel* fpixelbuff_normal = new fpixel[2 * width*height];
-	fpixel* fpixelbuff_depth = new fpixel[2 * width*height];
+	float* fpixelbuff_depth = new float[2 * width*height];
 	float* fpixelbuff_alpha = new float[2 * width*height];
-	float* fpixelbuff_shadow = new float[2 * width*height];
 
 	for(int i=0;i<height;i++){
 		for (int j = 0; j<width; j++){
@@ -602,9 +503,8 @@ int main(int argc, char* argv[])
 				fpixelbuff_gi_normal[k][i * width + j].Set(0, 0, 0);
 			}
 			fpixelbuff_normal[i * width + j].Set(0.0f);
-			fpixelbuff_depth[i * width + j].Set(0.0f);
+			fpixelbuff_depth[i * width + j] = 0;
 			fpixelbuff_alpha[i * width + j] = 0;
-			fpixelbuff_shadow[i * width + j] = 0;
 		}
 	}
 		
@@ -615,19 +515,6 @@ int main(int argc, char* argv[])
 	std::vector<std::thread> aThreads;
 
 	exeArg args[THREADCOUNT];
-
-	a0 = new float[m->iface];
-	a1 = new float[m->iface];
-	a2 = new float[m->iface];
-	x2 = new float[m->iface];
-	y2 = new float[m->iface];
-	z2 = new float[m->iface];
-	yx = new float[m->iface];
-	zx = new float[m->iface];
-	yz = new float[m->iface];
-	fx = new float[m->iface];
-	fy = new float[m->iface];
-	fz = new float[m->iface];
 
 	for (int i = 0; i < THREADCOUNT; i++)
 	{
@@ -646,11 +533,9 @@ int main(int argc, char* argv[])
 		args[i].fpixelbuff_gi = fpixelbuff_gi;
 		args[i].fpixelbuff_gi_normal = fpixelbuff_gi_normal;
 		args[i].fpixelbuff_alpha = fpixelbuff_alpha;
-		args[i].fpixelbuff_shadow = fpixelbuff_shadow;
 		args[i].height = height;
 		args[i].voxellist = new voxel*[lastVoxelCount * 2];
 		args[i].facelist = new int[m->iface * 2];
-		args[i].facelistCount = 0;
 
 		if (!renderInTex)
 		{
@@ -673,13 +558,10 @@ int main(int argc, char* argv[])
 	pixel* pixelbuff;
 	pixelbuff = new pixel[width*height];
 
-	int max;
-
 	//nomal
-	max = sampleCount;
 	for(int i=0;i<height;i++){
 		for(int j=0;j<width;j++){
-			max = fpixelbuff_count[0][i * width + j];
+			int max = fpixelbuff_count[0][i * width + j];
 			pixelbuff[i * width + j].r = fpixelbuff_normal[i * width + j].r/max*255;
 			pixelbuff[i * width + j].g = fpixelbuff_normal[i * width + j].g/max*255;
 			pixelbuff[i * width + j].b = fpixelbuff_normal[i * width + j].b/max*255;
@@ -695,7 +577,7 @@ int main(int argc, char* argv[])
 		//diff
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
-				max = fpixelbuff_count[k][i * width + j];
+				int max = fpixelbuff_count[k][i * width + j];
 				pixelbuff[i * width + j].r = fpixelbuff_diff[k][i * width + j].r / max * 255;
 				pixelbuff[i * width + j].g = fpixelbuff_diff[k][i * width + j].g / max * 255;
 				pixelbuff[i * width + j].b = fpixelbuff_diff[k][i * width + j].b / max * 255;
@@ -710,7 +592,7 @@ int main(int argc, char* argv[])
 		//gi
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
-				max = fpixelbuff_count[0][i * width + j];
+				int max = fpixelbuff_count[0][i * width + j];
 				pixelbuff[i * width + j].r = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
 				pixelbuff[i * width + j].g = clamp(fpixelbuff_gi[k][i * width + j].g / max) * 255;
 				pixelbuff[i * width + j].b = clamp(fpixelbuff_gi[k][i * width + j].b / max) * 255;
@@ -725,7 +607,7 @@ int main(int argc, char* argv[])
 		//gi normal
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
-				max = fpixelbuff_count[0][i * width + j];
+				int max = fpixelbuff_count[0][i * width + j];
 				fpixelbuff_gi_normal[k][i * width + j].Normalize();
 				_3DVec ginormal = fpixelbuff_gi_normal[k][i * width + j];
 				ginormal.Normalize();
@@ -751,7 +633,7 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 	intersection r; 
 	r.face=-1;
 	r.distance = 1e6;
-	int key = _rand();
+	int key = rnd::_rand();
 	face* fa = m->face_array;
 	createFaceList(v, p, facelist, facelistCount, voxellist, voxellistCount);
 	for (int i_=0;i_<facelistCount;i_++){
@@ -942,7 +824,7 @@ void Clean(voxel* v)
 void Statistics(voxel* v, int& voxelsCount, int& lastVoxelCount, int& everageFaceInVoxel, int& maxFaceInVoxel)
 {
 	voxelsCount++;
-	if (v->last == true)
+	if (v->last)
 	{
 		int c = v->faces.size();
 		if (c != 0)
@@ -1119,12 +1001,6 @@ void preparemodel(model* m, _3DVec& boundMax, _3DVec& boundMin){
 		m->face_array[i].d = v1.x*v3.y*v2.z-v1.x*v2.y*v3.z+v2.x*v1.y*v3.z-v2.x*v3.y*v1.z-v3.x*v1.y*v2.z+v3.x*v2.y*v1.z;
 		m->face_array[i].normal.Set(m->face_array[i].a, m->face_array[i].b, m->face_array[i].c);
 		m->face_array[i].normal.Normalize();
-		//m->face_array[i].center = (v1 + v2 + v3)/3.0f;
-		//double l1 = (v1 - m->face_array[i].center).Length();
-		//double l2 = (v2 - m->face_array[i].center).Length();
-		//double l3 = (v3 - m->face_array[i].center).Length();
-		//l1 = (l1>l2)?l1:l2;
-		//m->face_array[i].size = (l1>l3)?l1*l1:l3*l3;
 	}
 	boundMax = m->position[0];
 	boundMin = m->position[0];
