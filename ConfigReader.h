@@ -16,7 +16,7 @@ public:
 	virtual float GetFloat();
 	virtual	const fpixel& GetFPixel();
 	virtual const pixel& GetPixel();
-	virtual const _3DVec& Get3DVec();
+	virtual const glm::vec3& Get3DVec();
 	virtual const char* GetStr();
 };
 
@@ -63,9 +63,9 @@ public:
 class Field3DVec: public Field
 {
 public:
-	Field3DVec(_3DVec val);
-	virtual const _3DVec& Get3DVec();
-	_3DVec val;
+	Field3DVec(glm::vec3 val);
+	virtual const glm::vec3& Get3DVec();
+	glm::vec3 val;
 };
 
 class FieldStr: public Field

@@ -7,6 +7,8 @@
 #include <vector>
 #include <time.h>
 #include <thread>
+#include "rnd.h"
+#include <glm/gtx/norm.hpp>
 
 #define THREADCOUNT 8
 
@@ -55,14 +57,14 @@ struct exeArg
 	fpixel* fpixelbuff_normal;
 	float* fpixelbuff_depth;
 	fpixel** fpixelbuff_gi;
-	_3DVec** fpixelbuff_gi_normal;
+	glm::vec3** fpixelbuff_gi_normal;
 	float* fpixelbuff_alpha;
 	int**	fpixelbuff_count;
 	
 	texture* tex;
 
-	_3DVec boundMax;
-	_3DVec boundMin;
+	glm::vec3 boundMax;
+	glm::vec3 boundMin;
 
 	exeArg(){};
 	int* facelist;
@@ -70,19 +72,19 @@ struct exeArg
 };
 
 
-_3DVec lambertNoTangent(_3DVec normal)
+glm::vec3 lambertNoTangent(glm::vec3 normal)
 {
-    _2DVec uv(rnd::rand(), rnd::rand());
+    glm::vec2 uv(rnd::rand(), rnd::rand());
     float theta = 2.0 * pi * uv.x;
     uv.y = 2.0 * uv.y - 1.0;
-    _2DVec p = _2DVec(cos(theta), sin(theta)) * sqrt(1.0 - uv.y * uv.y);
-    _3DVec spherePoint = _3DVec(p.x, p.y, uv.y);
+    glm::vec2 p = glm::vec2(cos(theta), sin(theta)) * sqrtf(1.0 - uv.y * uv.y);
+    glm::vec3 spherePoint = glm::vec3(p.x, p.y, uv.y);
     spherePoint += normal;
-    spherePoint.Normalize();
+    spherePoint = glm::normalize(spherePoint);
     return spherePoint;
 }
 
-inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg)
+inline void Trace(glm::vec3 pos, glm::vec3 v, glm::vec3 normal, int i, int j, exeArg* arg)
 {
 	model* m = arg->m;
 	int* facelist = arg->facelist;
@@ -110,7 +112,7 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 		if (is.face != -1){
 			arg->fpixelbuff_count[k][i * width + j] += 1;
 
-			_3DVec rand_v = lambertNoTangent(is.normal);
+			glm::vec3 rand_v = lambertNoTangent(is.normal);
 
 			intersection ris = findintersection(m, rand_v, is.cp, facelist, facelistCount, voxellist, voxellistCount);
 
@@ -120,7 +122,7 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 			}
 			int u = ((int)(is.texcoord.x*arg->tex->width)) % arg->tex->width;
 			int v = ((int)(is.texcoord.y*arg->tex->height)) % arg->tex->height;
-			is.normal.Normalize();
+			is.normal = glm::normalize(is.normal);
 
 			fpixel tp(arg->tex->buff[u + v * arg->tex->width]);
 			lightColor *= tp;
@@ -141,15 +143,15 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 	}
 }
 
-typedef void(*function)(_3DVec pos, _3DVec normal, _3DVec l, int i, int j, int iterk, exeArg* arg, int treug);
+typedef void(*function)(glm::vec3 pos, glm::vec3 normal, glm::vec3 l, int i, int j, int iterk, exeArg* arg, int treug);
 
 void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, function);
 
-void renderFunction(_3DVec cp, _3DVec n, _3DVec l, int i_x, int i_y, int iterk, exeArg* arg, int treug)
+void renderFunction(glm::vec3 cp, glm::vec3 n, glm::vec3 l, int i_x, int i_y, int iterk, exeArg* arg, int treug)
 {
 	for (int i = 0; i < iterk; i++)
 	{
-		Trace(cp, _3DVec(0, 0, 0), n, i_y, i_x, arg);
+		Trace(cp, glm::vec3(0, 0, 0), n, i_y, i_x, arg);
 	}
 }
 
@@ -173,20 +175,20 @@ bool renderInTexRutine(exeArg* arg)
 }
 
 
-void floatToIntF(_2DVec in, int size, double &x, double &y)
+void floatToIntF(glm::vec2 in, int size, double &x, double &y)
 {
 	double half = 1.0 / static_cast<double>(size) / 2.0;
 	x = (in.x - half) * static_cast<double>(size);
 	y = (in.y - half) * static_cast<double>(size);
 }
-void floatToInt(_2DVec in, int size, int &x, int &y)
+void floatToInt(glm::vec2 in, int size, int &x, int &y)
 {
 	double xf, yf;
 	floatToIntF(in, size, xf, yf);
 	x = static_cast<int>(lround(xf));
 	y = static_cast<int>(lround(yf));
 }
-void intToFloat(_2DVec &in, int size, int x, int y)
+void intToFloat(glm::vec2 &in, int size, int x, int y)
 {
 	double half = 1.0 / static_cast<double>(size) / 2.0;
 	in.x = x / static_cast<double>(size)+half;
@@ -196,24 +198,23 @@ void intToFloat(_2DVec &in, int size, int x, int y)
 
 void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, function f)
 {
-	_2DVec v[3];
+	glm::vec2 v[3];
 	for (int k = 0; k < 3; k++)
 	{
 		v[k] = m->texcoord[m->face_array[i].ivt[k]];
 	}
-	_3DVec v3[3];
+	glm::vec3 v3[3];
 	for (int k = 0; k < 3; k++)
 	{
 		v3[k] = m->position[m->face_array[i].iv[k]];
 	}
 
-	_3DVec normal[3];
+	glm::vec3 normal[3];
 	for (int k = 0; k < 3; k++)
 	{
-		normal[k] = m->normal[m->face_array[i].ivn[k]];
-		normal[k].Normalize();
+		normal[k] = glm::normalize(m->normal[m->face_array[i].ivn[k]]);
 	}
-	_3DVec fnormal = m->face_array[i].normal;
+	glm::vec3 fnormal = m->face_array[i].normal;
 
 	//sorting by y coord
 	for (int iter = 0; iter < 4; iter++)
@@ -221,16 +222,16 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 		int it = iter % 2;
 		if (v[it].y < v[it + 1].y)
 		{
-			_2DVec tmp = v[it];
+			glm::vec2 tmp = v[it];
 			v[it] = v[it + 1];
 			v[it + 1] = tmp;
 			{
-				_3DVec tmp = v3[it];
+				glm::vec3 tmp = v3[it];
 				v3[it] = v3[it + 1];
 				v3[it + 1] = tmp;
 			}
 			{
-				_3DVec tmp = normal[it];
+				glm::vec3 tmp = normal[it];
 				normal[it] = normal[it + 1];
 				normal[it + 1] = tmp;
 			}
@@ -251,7 +252,7 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 		double x = (-c - b * ymid) / a;
 		if (x < 0 || x> 1.0)
 			return;
-		_2DVec vc(x, ymid);
+		glm::vec2 vc(x, ymid);
 		if (tmpx < x)
 		{
 			SB_GET_LINE(line1l[0], line1l[1], line1l[2], v[0], v[1]);
@@ -295,15 +296,15 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 			continue;
 
 		double f_ytop, f_ybottom, tmp;
-		floatToIntF(_2DVec(0, ytop), lightmapSize, tmp, f_ytop);
-		floatToIntF(_2DVec(0, ybottom), lightmapSize, tmp, f_ybottom);
+		floatToIntF(glm::vec2(0, ytop), lightmapSize, tmp, f_ytop);
+		floatToIntF(glm::vec2(0, ybottom), lightmapSize, tmp, f_ybottom);
 
 		int i_ytop = (int)round(f_ytop);
 		int i_ybottom = (int)round(f_ybottom);
 
 		for (int i_y = i_ytop; i_y >= i_ybottom; i_y--)
 		{
-			_2DVec v_;
+			glm::vec2 v_;
 			intToFloat(v_, lightmapSize, 0, i_y);
 			double d_y = v_.y;
 
@@ -313,8 +314,8 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 			double d_xr = (-liner[2] - liner[1] * d_y) / liner[0];
 
 			double f_xl, f_xr, tmp;
-			floatToIntF(_2DVec(d_xl, 0), lightmapSize, f_xl, tmp);
-			floatToIntF(_2DVec(d_xr, 0), lightmapSize, f_xr, tmp);
+			floatToIntF(glm::vec2(d_xl, 0), lightmapSize, f_xl, tmp);
+			floatToIntF(glm::vec2(d_xr, 0), lightmapSize, f_xr, tmp);
 
 			int i_xl = (int)round(f_xl);
 			int i_xr = (int)round(f_xr);
@@ -323,7 +324,7 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 			{
 				if (i_x >= 0 && i_x <= (double)lightmapSize && i_y >= 0 && i_y <= lightmapSize)
 				{
-					_2DVec v_;
+					glm::vec2 v_;
 					intToFloat(v_, lightmapSize, i_x, 0);
 					double d_x = v_.x;
 
@@ -351,10 +352,10 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 					double ny = normal[0].y * lambda0 + normal[1].y * lambda1 + normal[2].y * lambda2;
 					double nz = normal[0].z * lambda0 + normal[1].z * lambda1 + normal[2].z * lambda2;
 
-					_3DVec cp(x, y, z);
-					_3DVec l(lambda0, lambda1, lambda2);
-					_3DVec n(nx, ny, nz);
-					n.Normalize();
+					glm::vec3 cp(x, y, z);
+					glm::vec3 l(lambda0, lambda1, lambda2);
+					glm::vec3 n(nx, ny, nz);
+					n = glm::normalize(n);
 					f(cp, n, l, i_x, i_y, iterk, arg, i);
 				}
 			}
@@ -370,8 +371,8 @@ bool renderRutine(exeArg *arg)
 
 	int progress = 0;
 
-	_3DVec boundMax = arg->boundMax;
-	_3DVec boundMin = arg->boundMin;
+	glm::vec3 boundMax = arg->boundMax;
+	glm::vec3 boundMin = arg->boundMin;
 
 	for (int i = arg->offset; i<arg->height; i += THREADCOUNT){
 		if (((i)* 80 / THREADCOUNT) / (arg->height) >progress){
@@ -387,10 +388,10 @@ bool renderRutine(exeArg *arg)
 				{
 					float dx = rnd::rand(-0.5, 0.5) * 1.1f;
 					float dy = rnd::rand(-0.5, 0.5) * 1.1f;
-					_3DVec pos(alpha + dx * (boundMax.x - boundMin.x) / width,
+					glm::vec3 pos(alpha + dx * (boundMax.x - boundMin.x) / width,
 					           betta + dy * (boundMax.y - boundMin.y) / height, -1000.0);
-					_3DVec v(0, 0, 1.0f);
-					Trace(pos, v, _3DVec(1.0f, 0.0f, 0.0f), i, j, arg);
+					glm::vec3 v(0, 0, 1.0f);
+					Trace(pos, v, glm::vec3(1.0f, 0.0f, 0.0f), i, j, arg);
 				}
 			}
 		}
@@ -431,8 +432,8 @@ int main(int argc, char* argv[])
 	model* m = loadmodel(obj_str);
 	texture* tex =  loadtexture(tex_str);
 
-	_3DVec boundMax;
-	_3DVec boundMin;
+	glm::vec3 boundMax;
+	glm::vec3 boundMin;
 
 	printf("prepareing model\n");
 	printf("number of faces: %d\n",m->iface);
@@ -474,13 +475,13 @@ int main(int argc, char* argv[])
 	int**	fpixelbuff_count = new int*[bounce];
 	fpixel** fpixelbuff_diff = new fpixel*[bounce];
 	fpixel** fpixelbuff_gi = new fpixel*[bounce];
-	_3DVec** fpixelbuff_gi_normal = new _3DVec*[bounce];
+	glm::vec3** fpixelbuff_gi_normal = new glm::vec3*[bounce];
 	for (int i = 0; i < bounce; i++)
 	{
 		fpixelbuff_count[i] = new int[2 * width*height];
 		fpixelbuff_diff[i] = new fpixel[2 * width*height];
 		fpixelbuff_gi[i] = new fpixel[2 * width*height];
-		fpixelbuff_gi_normal[i] = new _3DVec[2 * width*height];
+		fpixelbuff_gi_normal[i] = new glm::vec3[2 * width*height];
 	}
 	fpixel* fpixelbuff_normal = new fpixel[2 * width*height];
 	float* fpixelbuff_depth = new float[2 * width*height];
@@ -493,7 +494,7 @@ int main(int argc, char* argv[])
 				fpixelbuff_count[k][i * width + j] = 0;
 				fpixelbuff_diff[k][i * width + j].Set(0.0f);
 				fpixelbuff_gi[k][i * width + j].Set(0.0f);
-				fpixelbuff_gi_normal[k][i * width + j].Set(0, 0, 0);
+				fpixelbuff_gi_normal[k][i * width + j] = glm::vec3(0, 0, 0);
 			}
 			fpixelbuff_normal[i * width + j].Set(0.0f);
 			fpixelbuff_depth[i * width + j] = 0;
@@ -601,9 +602,7 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[0][i * width + j];
-				fpixelbuff_gi_normal[k][i * width + j].Normalize();
-				_3DVec ginormal = fpixelbuff_gi_normal[k][i * width + j];
-				ginormal.Normalize();
+				glm::vec3 ginormal = glm::normalize(fpixelbuff_gi_normal[k][i * width + j]);
 				pixelbuff[i * width + j].r = (ginormal.x + 1.0f) / 2.0f * 255;
 				pixelbuff[i * width + j].g = (ginormal.y + 1.0f) / 2.0f * 255;
 				pixelbuff[i * width + j].b = (ginormal.z + 1.0f) / 2.0f * 255;
@@ -621,8 +620,8 @@ int main(int argc, char* argv[])
 	getchar();
 }
 
-intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount){
-	v.Normalize();
+intersection findintersection(model* m, glm::vec3 v, glm::vec3& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount){
+	v = glm::normalize(v);
 	intersection r; 
 	r.face=-1;
 	r.distance = 1e6;
@@ -635,19 +634,20 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 		if (f.key != key){
 			f.key = key;
 			//find distanse
-			double t = v * (f.center - p);
-			double dist = (v * t - f.center + p).Length2();
+			float t = glm::dot(v, (f.center - p));
+
+			double dist = glm::length2(v * t - f.center + p);
 			if (dist<f.size_){
-			//if (IsRayInV<face, _3DVec>(f,v, p)){
-				_3DVec planev = _3DVec(f.a, f.b, f.c);
-				double tmp = planev * v;
+			//if (IsRayInV<face, glm::vec3>(f,v, p)){
+				glm::vec3 planev = glm::vec3(f.a, f.b, f.c);
+				float tmp = glm::dot(planev, v);
 				if (tmp != 0){
-					double t = (-planev * p - f.d) / tmp;
+					float t = (- glm::dot(planev, p) - f.d) / tmp;
 					if (t>0.000001f){
-						_3DVec cp = p + v * t;
-						_3DVec v1 = m->position[m->face_array[i].iv[0]];
-						_3DVec v2 = m->position[m->face_array[i].iv[1]];
-						_3DVec v3 = m->position[m->face_array[i].iv[2]];
+						glm::vec3 cp = p + v * t;
+						glm::vec3 v1 = m->position[m->face_array[i].iv[0]];
+						glm::vec3 v2 = m->position[m->face_array[i].iv[1]];
+						glm::vec3 v3 = m->position[m->face_array[i].iv[2]];
 						bool ch1 = check(cp, v1, v2, planev);
 						bool ch2 = check(cp, v2, v3, planev);
 						bool ch3 = check(cp, v3, v1, planev);
@@ -665,49 +665,54 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 		}
 	}
 	if (r.face!=-1){
-		_3DVec pn = m->face_array[r.face].normal;
-		_3DVec v1 = m->position[m->face_array[r.face].iv[0]];
-		_3DVec v2 = m->position[m->face_array[r.face].iv[1]];
-		_3DVec v3 = m->position[m->face_array[r.face].iv[2]];
+		glm::vec3 pn = m->face_array[r.face].normal;
+		glm::vec3 v1 = m->position[m->face_array[r.face].iv[0]];
+		glm::vec3 v2 = m->position[m->face_array[r.face].iv[1]];
+		glm::vec3 v3 = m->position[m->face_array[r.face].iv[2]];
+
 		v2-=v1;
 		v3-=v1;
-		_3DVec lcp = r.cp - v1;
-		_3DVec b1 = v2;
-		_3DVec b2 = Cross(b1,pn);
-		b1.Normalize();
-		b2.Normalize();
-		v2 = _3DVec(b1*v2,b2*v2,0);
-		v3 = _3DVec(b1*v3,b2*v3,0);
-		lcp = _3DVec(1,b1*lcp,b2*lcp);
+
+		glm::vec3 lcp = r.cp - v1;
+		glm::vec3 b1 = v2;
+		glm::vec3 b2 = glm::cross(b1,pn);
+		b1 = glm::normalize(b1);
+		b2 = glm::normalize(b2);
+
+		v2 = glm::vec3(glm::dot(b1, v2), glm::dot(b2, v2),0.f);
+		v3 = glm::vec3(glm::dot(b1, v3), glm::dot(b2, v3),0.f);
+
+		lcp = glm::vec3(1, glm::dot(b1, lcp), glm::dot(b2, lcp));
 		float id = 1/(v2.x*v3.y - v3.x*v2.y);
-		_3DVec c1(1, 0, 0);
-		_3DVec c2( (v2.y - v3.y)*id,  v3.y*id, - v2.y*id);
-		_3DVec c3(-(v2.x - v3.x)*id, -v3.x*id,   v2.x*id);
-		///////////////////////////////////////////////////////
-		_3DVec n1 = m->normal[m->face_array[r.face].ivn[0]];   
-		_3DVec n2 = m->normal[m->face_array[r.face].ivn[1]];   
-		_3DVec n3 = m->normal[m->face_array[r.face].ivn[2]];
+
+		glm::vec3 c1(1, 0, 0);
+		glm::vec3 c2( (v2.y - v3.y)*id,  v3.y*id, - v2.y*id);
+		glm::vec3 c3(-(v2.x - v3.x)*id, -v3.x*id,   v2.x*id);
+		glm::vec3 n1 = m->normal[m->face_array[r.face].ivn[0]];
+		glm::vec3 n2 = m->normal[m->face_array[r.face].ivn[1]];
+		glm::vec3 n3 = m->normal[m->face_array[r.face].ivn[2]];
 		transpose(&n1,&n2,&n3);
-		_3DVec ax(c1*n1,c2*n1,c3*n1);
-		_3DVec ay(c1*n2,c2*n2,c3*n2);
-		_3DVec az(c1*n3,c2*n3,c3*n3);
-		r.normal = _3DVec(ax*lcp,ay*lcp,az*lcp);
+
+		glm::vec3 ax(glm::dot(c1,n1),glm::dot(c2,n1),glm::dot(c3,n1));
+		glm::vec3 ay(glm::dot(c1,n2),glm::dot(c2,n2),glm::dot(c3,n2));
+		glm::vec3 az(glm::dot(c1,n3),glm::dot(c2,n3),glm::dot(c3,n3));
+		r.normal = glm::normalize(glm::vec3(glm::dot(ax, lcp), glm::dot(ay, lcp), glm::dot(az, lcp)));
 		///////////////////////////////////////////////////////
-		_2DVec t1 = m->texcoord[m->face_array[r.face].ivt[0]];   
-		_2DVec t2 = m->texcoord[m->face_array[r.face].ivt[1]]; 
-		_2DVec t3 = m->texcoord[m->face_array[r.face].ivt[2]];
-		_3DVec tu(t1.x,t2.x,t3.x);
-		_3DVec tv(t1.y,t2.y,t3.y);
-		_3DVec au(c1*tu,c2*tu,c3*tu);
-		_3DVec av(c1*tv,c2*tv,c3*tv);
-		r.texcoord = _2DVec(au*lcp,av*lcp);			   
+		glm::vec2 t1 = m->texcoord[m->face_array[r.face].ivt[0]];   
+		glm::vec2 t2 = m->texcoord[m->face_array[r.face].ivt[1]]; 
+		glm::vec2 t3 = m->texcoord[m->face_array[r.face].ivt[2]];
+		glm::vec3 tu(t1.x,t2.x,t3.x);
+		glm::vec3 tv(t1.y,t2.y,t3.y);
+		glm::vec3 au(glm::dot(c1, tu), glm::dot(c2, tu), glm::dot(c3, tu));
+		glm::vec3 av(glm::dot(c1, tv), glm::dot(c2, tv), glm::dot(c3, tv));
+		r.texcoord = glm::vec2(glm::dot(au, lcp), glm::dot(av, lcp));
 	}
 	return r;
 }
 
-void CreateVoxelList(voxel* vox, const _3DVec& v, const _3DVec& p, int* c, voxel** voxellist)
+void CreateVoxelList(voxel* vox, const glm::vec3& v, const glm::vec3& p, int* c, voxel** voxellist)
 {
-	if (IsRayInV<voxel, _3DVec>(*vox, v, p))
+	if (IsRayInV<voxel, glm::vec3>(*vox, v, p))
 	{
 		if(vox->last)
 		{
@@ -724,7 +729,7 @@ void CreateVoxelList(voxel* vox, const _3DVec& v, const _3DVec& p, int* c, voxel
 	}
 }
 
-void createFaceList(_3DVec& v, _3DVec& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount)
+void createFaceList(glm::vec3& v, glm::vec3& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount)
 {
 	facelistCount = 0;
 	voxellistCount = 0;
@@ -735,7 +740,7 @@ void createFaceList(_3DVec& v, _3DVec& p, int* facelist, int &facelistCount, vox
 		changed = false;
 		for( int i = 0; i <voxellistCount-1; i++)
 		{
-			if((voxellist[i]->center - p).Length2()>(voxellist[i+1]->center - p).Length2())
+			if(glm::length2(voxellist[i]->center - p) > glm::length2(voxellist[i+1]->center - p))
 			{
 				voxel* tmp = voxellist[i];
 				voxellist[i] = voxellist[i+1];
@@ -755,12 +760,12 @@ void createFaceList(_3DVec& v, _3DVec& p, int* facelist, int &facelistCount, vox
 }
 
 template<typename T, typename B>
-inline bool IsRayInV(const T &vox, const _3DVec& v, const _3DVec& p)
+inline bool IsRayInV(const T &vox, const glm::vec3& v, const glm::vec3& p)
 {
 	const B& size = vox.size;
-	const _3DVec p_ = vox.center - p;
-	const _3DVec p_p_s = 1.0 / (p_ + size);
-	const _3DVec p_m_s = 1.0 / (p_ - size);
+	const glm::vec3 p_ = vox.center - p;
+	const glm::vec3 p_p_s = 1.0f / (p_ + size);
+	const glm::vec3 p_m_s = 1.0f / (p_ - size);
 	const double kx = p_p_s.x*v.x;
 	const double kx_ = p_m_s.x*v.x;
 	const double ky = p_p_s.y*v.y;
@@ -861,18 +866,18 @@ void checkTriagInVoxel(model* m,int id,voxel* v)
 void sortTriags(model* m, voxel* root)
 {
 	for (int i=0;i<m->iface;i++){
-		_3DVec boundMax;
-		_3DVec boundMin;
+		glm::vec3 boundMax;
+		glm::vec3 boundMin;
 		makeBound(m,i,boundMax,boundMin);
 		m->face_array[i].center = (boundMin + boundMax) / 2.0f;
 		m->face_array[i].size = (boundMax - boundMin) / 2.0f;
-		_3DVec s = m->face_array[i].size;
-		_3DVec v1 = m->position[m->face_array[i].iv[0]];
-		_3DVec v2 = m->position[m->face_array[i].iv[1]];
-		_3DVec v3 = m->position[m->face_array[i].iv[2]];
-		double l1 = (v1 - m->face_array[i].center).Length();
-		double l2 = (v2 - m->face_array[i].center).Length();
-		double l3 = (v3 - m->face_array[i].center).Length();
+		glm::vec3 s = m->face_array[i].size;
+		glm::vec3 v1 = m->position[m->face_array[i].iv[0]];
+		glm::vec3 v2 = m->position[m->face_array[i].iv[1]];
+		glm::vec3 v3 = m->position[m->face_array[i].iv[2]];
+		double l1 = glm::length(v1 - m->face_array[i].center);
+		double l2 = glm::length(v2 - m->face_array[i].center);
+		double l3 = glm::length(v3 - m->face_array[i].center);
 		l1 = (l1>l2)?l1:l2;
 		m->face_array[i].size_ = (l1>l3)?l1*l1:l3*l3;
 		checkTriagInVoxel(m,i,root);
@@ -893,7 +898,7 @@ void sortTriags(model* m, voxel* root)
 bool triagInVoxel(model* m, int triag, voxel* v)
 {
 	face* f = &m->face_array[triag];
-	_3DVec dist = v->center - f->center;
+	glm::vec3 dist = v->center - f->center;
 	if( fabs(dist.x) <= f->size.x + v->size.x )
 	{
 		if( fabs(dist.y) <= f->size.y + v->size.y )
@@ -907,11 +912,11 @@ bool triagInVoxel(model* m, int triag, voxel* v)
 	return false;
 }
 
-void makeBound(model* m, int triag, _3DVec& boundMax, _3DVec& boundMin)
+void makeBound(model* m, int triag, glm::vec3& boundMax, glm::vec3& boundMin)
 {
-	_3DVec v1 = m->position[m->face_array[triag].iv[0]];
-	_3DVec v2 = m->position[m->face_array[triag].iv[1]];
-	_3DVec v3 = m->position[m->face_array[triag].iv[2]];
+	glm::vec3 v1 = m->position[m->face_array[triag].iv[0]];
+	glm::vec3 v2 = m->position[m->face_array[triag].iv[1]];
+	glm::vec3 v3 = m->position[m->face_array[triag].iv[2]];
 	boundMax = v1;
 	boundMin = v1;
 
@@ -948,12 +953,12 @@ void createVoxels(voxel* voxels, int count)
 				for( int k = 0;k<2;k++,l++)
 				{
 					voxels->voxels[l] = NewVoxel();
-					voxels->voxels[l]->boundMin.Set( 
+					voxels->voxels[l]->boundMin = glm::vec3(
 						voxels->boundMin.x + i*(voxels->boundMax.x - voxels->boundMin.x)/2.0f, 
 						voxels->boundMin.y + j*(voxels->boundMax.y - voxels->boundMin.y)/2.0f, 
 						voxels->boundMin.z + k*(voxels->boundMax.z - voxels->boundMin.z)/2.0f
 						);
-					voxels->voxels[l]->boundMax.Set(
+					voxels->voxels[l]->boundMax = glm::vec3(
 						voxels->boundMin.x + (i+1)*(voxels->boundMax.x - voxels->boundMin.x)/2.0f, 
 						voxels->boundMin.y + (j+1)*(voxels->boundMax.y - voxels->boundMin.y)/2.0f, 
 						voxels->boundMin.z + (k+1)*(voxels->boundMax.z - voxels->boundMin.z)/2.0f
@@ -967,33 +972,17 @@ void createVoxels(voxel* voxels, int count)
 	}
 }
 
-void preparemodel(model* m, _3DVec& boundMax, _3DVec& boundMin){
-	float rotx = config->GetField("rotx")->GetFloat();
-	float roty = config->GetField("roty")->GetFloat();
-	float rotz = config->GetField("rotz")->GetFloat();
-	for(int i=0;i<m->iv;i++)
-	{
-		m->position[i].rotatex(rotx);
-		m->position[i].rotatey(roty);
-		m->position[i].rotatez(rotz);
-	}	
-	for(int i=0;i<m->ivn;i++)
-	{
-		m->normal[i].rotatex(rotx);
-		m->normal[i].rotatey(roty);
-		m->normal[i].rotatez(rotz);
-	}
-
+void preparemodel(model* m, glm::vec3& boundMax, glm::vec3& boundMin)
+{
 	for (int i=0;i<m->iface;i++){
-		_3DVec v1 = m->position[m->face_array[i].iv[0]];
-		_3DVec v2 = m->position[m->face_array[i].iv[1]];
-		_3DVec v3 = m->position[m->face_array[i].iv[2]];
+		glm::vec3 v1 = m->position[m->face_array[i].iv[0]];
+		glm::vec3 v2 = m->position[m->face_array[i].iv[1]];
+		glm::vec3 v3 = m->position[m->face_array[i].iv[2]];
 		m->face_array[i].a = v1.y*v2.z-v2.y*v1.z-v1.y*v3.z+v3.y*v1.z+v2.y*v3.z-v3.y*v2.z;
 		m->face_array[i].b = v2.x*v1.z-v1.x*v2.z+v1.x*v3.z-v3.x*v1.z-v2.x*v3.z+v3.x*v2.z;
 		m->face_array[i].c = v1.x*v2.y-v2.x*v1.y-v1.x*v3.y+v3.x*v1.y+v2.x*v3.y-v3.x*v2.y;
 		m->face_array[i].d = v1.x*v3.y*v2.z-v1.x*v2.y*v3.z+v2.x*v1.y*v3.z-v2.x*v3.y*v1.z-v3.x*v1.y*v2.z+v3.x*v2.y*v1.z;
-		m->face_array[i].normal.Set(m->face_array[i].a, m->face_array[i].b, m->face_array[i].c);
-		m->face_array[i].normal.Normalize();
+		m->face_array[i].normal = glm::normalize(glm::vec3((m->face_array[i].a, m->face_array[i].b, m->face_array[i].c)));
 	}
 	boundMax = m->position[0];
 	boundMin = m->position[0];
@@ -1006,8 +995,8 @@ void preparemodel(model* m, _3DVec& boundMax, _3DVec& boundMin){
 		if( m->position[i].y < boundMin.y) boundMin.y = m->position[i].y;
 		if( m->position[i].z < boundMin.z) boundMin.z = m->position[i].z;
 	}
-	_3DVec size = (boundMax - boundMin)/2.0f;
-	_3DVec pos  = (boundMax + boundMin)/2.0f;
+	glm::vec3 size = (boundMax - boundMin)/2.0f;
+	glm::vec3 pos  = (boundMax + boundMin)/2.0f;
 	float scale = config->GetField("scale")->GetFloat();
 	float offsetx = config->GetField("offsetx")->GetFloat();
 	float offsety = config->GetField("offsety")->GetFloat();
