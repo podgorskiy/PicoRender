@@ -72,9 +72,9 @@ namespace rnd
 
 	RandomState rs = RandomState(5);
 
-	uint32_t _rand() { rs.irand(); }
+	uint32_t _rand() { return rs.irand(); }
 
-	double rand() { rs.rand(); }
+	double rand() { return rs.rand(); }
 
-	double rand(float a, float b) { rs.rand(a, b); }
+	double rand(float a, float b) { return rs.rand(a, b); }
 }

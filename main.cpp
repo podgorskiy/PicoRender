@@ -215,7 +215,6 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 	{
 		normal[k] = glm::normalize(vec3(m->normal[m->face_array[i].ivn[k]]));
 	}
-	vec3 fnormal = m->face_array[i].normal;
 
 	//sorting by y coord
 	for (int iter = 0; iter < 4; iter++)
@@ -555,10 +554,13 @@ int main(int argc, char* argv[])
 	for(int i=0;i<height;i++){
 		for(int j=0;j<width;j++){
 			int max = fpixelbuff_count[0][i * width + j];
-			pixelbuff[i * width + j].r = fpixelbuff_normal[i * width + j].r/max*255;
-			pixelbuff[i * width + j].g = fpixelbuff_normal[i * width + j].g/max*255;
-			pixelbuff[i * width + j].b = fpixelbuff_normal[i * width + j].b/max*255;
-			pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j]/max*255;
+			if (max > 0)
+			{
+				pixelbuff[i * width + j].r = fpixelbuff_normal[i * width + j].r / max * 255;
+				pixelbuff[i * width + j].g = fpixelbuff_normal[i * width + j].g / max * 255;
+				pixelbuff[i * width + j].b = fpixelbuff_normal[i * width + j].b / max * 255;
+				pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+			}
 		}
 	}
 	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_normal.tga")).c_str());
@@ -571,10 +573,13 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[k][i * width + j];
-				pixelbuff[i * width + j].r = fpixelbuff_diff[k][i * width + j].r / max * 255;
-				pixelbuff[i * width + j].g = fpixelbuff_diff[k][i * width + j].g / max * 255;
-				pixelbuff[i * width + j].b = fpixelbuff_diff[k][i * width + j].b / max * 255;
-				pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+				if (max > 0)
+				{
+					pixelbuff[i * width + j].r = fpixelbuff_diff[k][i * width + j].r / max * 255;
+					pixelbuff[i * width + j].g = fpixelbuff_diff[k][i * width + j].g / max * 255;
+					pixelbuff[i * width + j].b = fpixelbuff_diff[k][i * width + j].b / max * 255;
+					pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+				}
 			}
 		}
 		std::string name = std::string("_diff%d.tga");
@@ -586,10 +591,13 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[0][i * width + j];
-				pixelbuff[i * width + j].r = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
-				pixelbuff[i * width + j].g = clamp(fpixelbuff_gi[k][i * width + j].g / max) * 255;
-				pixelbuff[i * width + j].b = clamp(fpixelbuff_gi[k][i * width + j].b / max) * 255;
-				pixelbuff[i * width + j].a = clamp(fpixelbuff_alpha[i * width + j] / max) * 255;
+				if (max > 0)
+				{
+					pixelbuff[i * width + j].r = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
+					pixelbuff[i * width + j].g = clamp(fpixelbuff_gi[k][i * width + j].g / max) * 255;
+					pixelbuff[i * width + j].b = clamp(fpixelbuff_gi[k][i * width + j].b / max) * 255;
+					pixelbuff[i * width + j].a = clamp(fpixelbuff_alpha[i * width + j] / max) * 255;
+				}
 			}
 		}
 		name = std::string("_gi%d.tga");
@@ -601,11 +609,14 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[0][i * width + j];
-				vec3 ginormal = glm::normalize(fpixelbuff_gi_normal[k][i * width + j]);
-				pixelbuff[i * width + j].r = (ginormal.x + 1.0f) / 2.0f * 255;
-				pixelbuff[i * width + j].g = (ginormal.y + 1.0f) / 2.0f * 255;
-				pixelbuff[i * width + j].b = (ginormal.z + 1.0f) / 2.0f * 255;
-				pixelbuff[i * width + j].a = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
+				if (max > 0)
+				{
+					vec3 ginormal = glm::normalize(fpixelbuff_gi_normal[k][i * width + j]);
+					pixelbuff[i * width + j].r = (ginormal.x + 1.0f) / 2.0f * 255;
+					pixelbuff[i * width + j].g = (ginormal.y + 1.0f) / 2.0f * 255;
+					pixelbuff[i * width + j].b = (ginormal.z + 1.0f) / 2.0f * 255;
+					pixelbuff[i * width + j].a = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
+				}
 			}
 		}
 		name = std::string("_gi_normal%d.tga");
@@ -618,7 +629,8 @@ int main(int argc, char* argv[])
 	printf("trace time is %d\n",traceStartTime);
 }
 
-intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount){
+intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount)
+{
 	v = glm::normalize(v);
 
 	intersection r; 
@@ -783,7 +795,7 @@ inline bool IsRayInV(const voxel&vox, const vec3& v, const vec3& p)
 
 bool makeTreeNodeEmpty(voxel* v)
 {
-	if(v->last == true)
+	if(v->last)
 	{
 		v->empty = v->faces.size() == 0;
 		return v->empty;
@@ -868,7 +880,6 @@ void sortTriags(model* m, voxel* root)
 		makeBound(m,i,boundMax,boundMin);
 		m->face_array[i].center = (boundMin + boundMax) / 2.0;
 		m->face_array[i].size = (boundMax - boundMin) / 2.0;
-		vec3 s = m->face_array[i].size;
 		vec3 v1 = m->position[m->face_array[i].iv[0]];
 		vec3 v2 = m->position[m->face_array[i].iv[1]];
 		vec3 v3 = m->position[m->face_array[i].iv[2]];
@@ -979,7 +990,7 @@ void preparemodel(model* m, vec3& boundMax, vec3& boundMin)
 		m->face_array[i].b = v2.x*v1.z-v1.x*v2.z+v1.x*v3.z-v3.x*v1.z-v2.x*v3.z+v3.x*v2.z;
 		m->face_array[i].c = v1.x*v2.y-v2.x*v1.y-v1.x*v3.y+v3.x*v1.y+v2.x*v3.y-v3.x*v2.y;
 		m->face_array[i].d = v1.x*v3.y*v2.z-v1.x*v2.y*v3.z+v2.x*v1.y*v3.z-v2.x*v3.y*v1.z-v3.x*v1.y*v2.z+v3.x*v2.y*v1.z;
-		m->face_array[i].normal = glm::normalize(vec3((m->face_array[i].a, m->face_array[i].b, m->face_array[i].c)));
+		m->face_array[i].normal = glm::normalize(vec3(m->face_array[i].a, m->face_array[i].b, m->face_array[i].c));
 	}
 	boundMax = m->position[0];
 	boundMin = m->position[0];
