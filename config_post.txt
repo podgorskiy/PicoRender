@@ -12,4 +12,4 @@ bool groundShadow = 1
 str gi_normalTex = example_camera_gi_normal0.tga
 str normalTex = example_camera_normal.tga
 str diffTex = example_camera_diff0.tga
-str outfile example_camera_composed.tga
+str outfile = example_camera_composed.tga
