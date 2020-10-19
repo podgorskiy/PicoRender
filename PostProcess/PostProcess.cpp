@@ -14,8 +14,6 @@
 #include "../ConfigReader.h"
 
 //////////////////////////////
-bool	groundOcclusion;
-bool	groundShadow;
 float	lightDirX;
 float	lightDirY;
 float	lightDirZ;
@@ -25,7 +23,6 @@ Config* config;
 
 int main(int argc, char* argv[])
 {
-	int startTime = time(NULL);
 	printf("reading data\n");
 
 	config = new Config;
@@ -47,11 +44,9 @@ int main(int argc, char* argv[])
 
 	fpixel* diff			= new fpixel[width*height];
 	_3DVec* normal			= new _3DVec[width*height];
-	float* depth			= new float[width*height];
 	float* gi				= new float[width*height];
 	_3DVec* gi_normal		= new _3DVec[width*height];
 	float* alpha			= new float[width*height];
-	float* shadow			= new float[width*height];
 
 	for(int i=0;i<diffTex->height;i++){
 		for(int j=0;j<diffTex->width;j++){
@@ -108,17 +103,12 @@ int main(int argc, char* argv[])
 				+ ambiant*config->GetField("gi")->GetFloat()
 				+config->GetField("ambient")->GetFloat();	
 			int r,g,b;
-			//if(( diff[i * width + j].r == 0 )&&( diff[i * width + j].g == 0 )&&( diff[i * width + j].b == 0 ))
-			//{
-			//	r = (bool((i>>3)%2) ^ bool((j>>3)%2))*255*(1.0-fpixelbuff_shadow[i * width + j]/sampleCount);
-			//	g = (bool((i>>3)%2) ^ bool((j>>3)%2))*255*(1.0-fpixelbuff_shadow[i * width + j]/sampleCount);
-			//	b = (bool((i>>3)%2) ^ bool((j>>3)%2))*255*(1.0-fpixelbuff_shadow[i * width + j]/sampleCount); 
-			//}else{
+
 			r = diff[i * width + j].r*255*illumination + spec*255;
 			g = diff[i * width + j].g*255*illumination + spec*255;
 			b = diff[i * width + j].b*255*illumination + spec*255;
 			int a = alpha[i * width + j]*255;
-			//}
+
 			pixelbuff[i * width + j].r = r>255 ? 255 : r;
 			pixelbuff[i * width + j].g = g>255 ? 255 : g;
 			pixelbuff[i * width + j].b = b>255 ? 255 : b;
