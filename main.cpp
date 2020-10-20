@@ -76,18 +76,6 @@ struct exeArg
 };
 
 
-vec3 lambertNoTangent(vec3 normal)
-{
-    vec2 uv(rnd::rand(), rnd::rand());
-    float theta = 2.0 * pi * uv.x;
-    uv.y = 2.0 * uv.y - 1.0;
-    vec2 p = vec2(cos(theta), sin(theta)) * sqrt(1.0 - uv.y * uv.y);
-    vec3 spherePoint = vec3(p.x, p.y, uv.y);
-    spherePoint += normal;
-    spherePoint = glm::normalize(spherePoint);
-    return spherePoint;
-}
-
 inline void Trace(vec3 pos, vec3 v, vec3 normal, int i, int j, exeArg* arg)
 {
 	model* m = arg->m;
@@ -523,14 +511,14 @@ int main(int argc, char* argv[])
 		for (int j = 0; j<width; j++){
 			for (int k = 0; k < bounce - 1; k++)
 			{
-				fpixelbuff_gi_by_bounce[k][i * width + j].Set(0.0f);
+				fpixelbuff_gi_by_bounce[k][i * width + j] = fpixel();
 			}
 			fpixelbuff_gi_normal[i * width + j] = vec3(0, 0, 0);
-			fpixelbuff_gi[i * width + j].Set(0, 0, 0);
+			fpixelbuff_gi[i * width + j] = fpixel();
 			fpixelbuff_normal[i * width + j] = vec3(0, 0, 0);
 			fpixelbuff_depth[i * width + j] = 0;
-			fpixelbuff_albido[i * width + j].Set(0, 0, 0);
-			fpixelbuff_final[i * width + j].Set(0, 0, 0);
+			fpixelbuff_albido[i * width + j] = fpixel();
+			fpixelbuff_final[i * width + j] = fpixel();
 		}
 	}
 

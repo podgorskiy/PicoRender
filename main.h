@@ -1,7 +1,7 @@
 #pragma once
 #include "types.h"
+#include "utils.h"
 
-#define pi 3.1415926535897932384626433832795
 
 inline void transpose(vec3* v1, vec3* v2, vec3* v3)
 {
@@ -15,36 +15,6 @@ inline void transpose(vec3* v1, vec3* v2, vec3* v3)
 	v2->z = v3->y;
 	v3->y = tmp;
 }
-
-inline double saturate(const float& x){if(x<0) return 0; else if(x>1) return 1; else return x;}
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct pixel {
-	unsigned char r,g,b,a;
-	pixel():r(0),g(0),b(0),a(0){};
-	pixel(char r, char g, char b, char a):r(r),g(g),b(b),a(a){};
-};
-struct pixel24 {
-	unsigned char r,g,b;
-	pixel24():r(0),g(0),b(0){};
-	pixel24(char r, char g, char b):r(r),g(g),b(b){};
-};
-
-struct fpixel {
-	float r,g,b;
-	fpixel():r(0),g(0),b(0){};
-	fpixel(float r, float g, float b):r(r),g(g),b(b){};
-	fpixel(pixel p) : r(p.r/255.0f), g(p.g/255.0f), b(p.b/255.0f) {}
-	fpixel(pixel24 p) : r(p.r/255.0f), g(p.g/255.0f), b(p.b/255.0f) {}
-	inline void operator += (const fpixel& v){	r += v.r; g += v.g; b += v.b;}
-	inline void operator += (const float& v){	r += v; g += v; b += v;}
-	inline void operator *= (const float& a){	r *= a; g *= a; b *=a;}
-	inline void operator *= (const fpixel& p){	r *= p.r; g *= p.g; b *=p.b;}
-	void Set (const float& x){r=x;g=x;b=x;}
-	void Set (const float& xr, const float& xg, const float& xb){r=xr;g=xg;b=xb;}
-};
-inline fpixel operator * (const float s, const fpixel& a){ return fpixel(s * a.r, s * a.g, s * a.b); }
-inline fpixel operator * (const fpixel&a, const fpixel& b){ return fpixel(b.r * a.r, b.g * a.g, b.b * a.b); }
 
 
 struct face {

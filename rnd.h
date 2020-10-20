@@ -1,3 +1,4 @@
+#pragma once
 #include <inttypes.h>
 #include <random>
 #include <mutex>
@@ -70,11 +71,11 @@ namespace rnd
 		double m_gauss = 0.0;
 	};
 
-	RandomState rs = RandomState(5);
+	extern RandomState rs;
 
-	uint32_t _rand() { return rs.irand(); }
+	inline uint32_t _rand() { return rs.irand(); }
 
-	double rand() { return rs.rand(); }
+	inline double rand() { return rs.rand(); }
 
-	double rand(float a, float b) { return rs.rand(a, b); }
+	inline double rand(float a, float b) { return rs.rand(a, b); }
 }
