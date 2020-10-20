@@ -1,10 +1,12 @@
 #pragma once
-#include <float.h>
-#include <math.h>
-#include <inttypes.h>
+
 #include <glm/glm.hpp>
 
-#define PI 3.1415926535897932384626433832795
+
+#define PI_F 3.141592654f
+
+#define PI_D 3.14159265358979323846264338327950288
+
 
 typedef glm::dvec3 vec3;
 typedef glm::dvec2 vec2;

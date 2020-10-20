@@ -1,81 +1,66 @@
 #pragma once
-#include <inttypes.h>
-#include <random>
-#include <mutex>
-
+#include "types.h"
 
 namespace rnd
 {
 	class RandomState
 	{
 	public:
-		explicit RandomState(uint32_t _seed):gen(_seed)
+		RandomState()
 		{}
 
-		double randn()
+		explicit RandomState(uint64_t seed): seedA(seed >> 32U), seedB(seed)
 		{
-			if (m_has_gauss)
-			{
-		        m_has_gauss = false;
-		        return m_gauss;
-			}
-			else
-			{
-		        for (;;)
-		        {
-		            double x1 = next_double();
-		            double x2 = next_double() ;
-		            double r2 = x1 * x1 + x2 * x2;
-		            if (r2 < 1.0 && r2 != 0.0)
-		            {
-				        double f = sqrt(-2.0 * log(r2) / r2);
-				        m_gauss = f * x1;
-				        m_has_gauss = true;
-				        return f * x2;
-		            }
-		        }
+		    for (int i=0;i<10;++i)
+		    {
+		    	gen();
 		    }
 		}
 
 		uint32_t irand()
 		{
-			std::lock_guard<std::mutex> g(m);
 			return uint32_t(gen());
 		}
 
-		double rand()
+		float rand1()
 		{
-			std::lock_guard<std::mutex> g(m);
-			uint32_t a = uint32_t(gen()) >> 5U;
-			uint32_t b = uint32_t(gen()) >> 6U;
-			return ((a * 67108864.0 + b) / 4503599627370496.0 - 1.0) * 0.5 + 0.5;
+			uint32_t x = (gen()>>9U) | 0x3f800000U;
+			return reinterpret_cast<const float&>(x) - 1.0;
 		}
 
-		double rand(float a, float b)
+		vec2 rand2()
 		{
-			return rand() * (b - a) + a;
+			uint32_t a = (gen()>>9U) | 0x3f800000U;
+			uint32_t b = (gen()>>9U) | 0x3f800000U;
+			return vec2(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b)) - 1.0;
+		}
+
+		vec3 rand3()
+		{
+			uint32_t a = (gen()>>9U) | 0x3f800000U;
+			uint32_t b = (gen()>>9U) | 0x3f800000U;
+			uint32_t c = (gen()>>9U) | 0x3f800000U;
+			return vec3(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b), reinterpret_cast<const float&>(c)) - 1.0;
+		}
+
+		uint32_t gen()
+		{
+			uint32_t x = seedA;
+			uint32_t y = seedB;
+			seedA = y;
+			x ^= x << 23U;
+			seedB = x ^ y ^ (x >> 17U) ^ (y >> 26U);
+		    uint32_t n = seedB + y;
+			return n * (n * n * 15731U + 789221U) + 1376312589U;
+		}
+
+		float rand(float a, float b)
+		{
+			return rand1() * (b - a) + a;
 		}
 
 	private:
-		double next_double()
-		{
-			std::lock_guard<std::mutex> g(m);
-			uint32_t a = uint32_t(gen()) >> 5U;
-			uint32_t b = uint32_t(gen()) >> 6U;
-			return (a * 67108864.0 + b) / 4503599627370496.0 - 1.0;
-		}
-
-		std::mutex m;
-		std::mt19937 gen;
-		int m_has_gauss = 0;
-		double m_gauss = 0.0;
+		uint32_t seedA = 0x9c127997U;
+		uint32_t seedB = 0x140b75b2U;
 	};
-
-	extern RandomState rs;
-
-	inline uint32_t _rand() { return rs.irand(); }
-
-	inline double rand() { return rs.rand(); }
-
-	inline double rand(float a, float b) { return rs.rand(a, b); }
 }

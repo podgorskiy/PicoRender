@@ -76,7 +76,7 @@ struct exeArg
 };
 
 
-inline void Trace(vec3 pos, vec3 v, vec3 normal, int i, int j, exeArg* arg)
+inline void Trace(vec3 pos, vec3 v, vec3 normal, int i, int j, exeArg* arg, rnd::RandomState* rs)
 {
 	model* m = arg->m;
 	int* facelist = arg->facelist;
@@ -116,7 +116,7 @@ inline void Trace(vec3 pos, vec3 v, vec3 normal, int i, int j, exeArg* arg)
 			attenuation = arg->tex->buff[uv_u + uv_v * arg->tex->width];
 			attenuation = fpixel(pow(attenuation.r, 2.2), pow(attenuation.g, 2.2), pow(attenuation.b, 2.2));
 
-			v = lambertNoTangent(is.normal);
+			v = lambertNoTangent(is.normal, rs);
 
 			if (k == 0)
 			{
@@ -165,9 +165,11 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 
 void renderFunction(vec3 cp, vec3 n, vec3 l, int i_x, int i_y, int iterk, exeArg* arg, int treug)
 {
+	rnd::RandomState rs(uint64_t(i_x) << 32ULL | i_y);
+
 	for (int i = 0; i < iterk; i++)
 	{
-		Trace(cp, vec3(0, 0, 0), n, i_y, i_x, arg);
+		Trace(cp, vec3(0, 0, 0), n, i_y, i_x, arg, &rs);
 	}
 }
 
@@ -398,14 +400,17 @@ bool renderRutine(exeArg *arg)
 			for (int j = 0; j<width; j++){
 				float alpha = (float)j / (float)(width - 1) * boundMax.x + (width - j - 1) / (float)(width - 1) * boundMin.x;
 				int iterK = sampleCount;
+
+				rnd::RandomState rs(uint64_t(i) << 32ULL | j);
+
 				for (int k = 0; k < iterK; k++)
 				{
-					float dx = rnd::rand(-0.5, 0.5) * 1.1f;
-					float dy = rnd::rand(-0.5, 0.5) * 1.1f;
+					float dx = rs.rand(-0.5, 0.5) * 1.1f;
+					float dy = rs.rand(-0.5, 0.5) * 1.1f;
 					vec3 pos(alpha + dx * (boundMax.x - boundMin.x) / width,
 					           betta + dy * (boundMax.y - boundMin.y) / height, -1000.0);
 					vec3 v(0, 0, 1.0f);
-					Trace(pos, v, vec3(1.0f, 0.0f, 0.0f), i, j, arg);
+					Trace(pos, v, vec3(1.0f, 0.0f, 0.0f), i, j, arg, &rs);
 				}
 			}
 		}
@@ -694,7 +699,7 @@ intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &face
 	intersection r; 
 	r.face=-1;
 	r.distance = 1e6;
-	int key = rnd::_rand();
+	int key = rand();
 	face* fa = m->face_array;
 	bool flip = false;
 	createFaceList(v, p, facelist, facelistCount, voxellist, voxellistCount);
