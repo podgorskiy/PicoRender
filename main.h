@@ -1,7 +1,6 @@
 #pragma once
 #include <float.h>
 #include <math.h>
-#define	maxFloat		FLT_MAX
 #define	epsilon		FLT_EPSILON
 
 #define pi 3.1415926535897932384626433832795
@@ -155,7 +154,7 @@ struct model{
 	_2DVec* texcoord;
 	face*   face_array;
 	int iv, ivt, ivn, iface;
-	model():position(NULL),normal(NULL),texcoord(NULL),face_array(NULL),iv(0),ivt(0),ivn(0),iface(0){};
+	model():position(nullptr),normal(nullptr),texcoord(nullptr),face_array(nullptr),iv(0),ivt(0),ivn(0),iface(0){};
 	void setsize(int iv_, int ivt_, int ivn_, int iface_){iv = iv_; ivt = ivt_; ivn = ivn_; iface = iface_;};
 };
 struct texture{
@@ -187,10 +186,7 @@ struct voxel{
 };
 
 inline bool check(_3DVec& cp, _3DVec& v1, _3DVec& v2, _3DVec& planev){
-	if (Cross(v2 - v1, cp - v1)*planev>0)
-		return true;
-	else
-		return false;
+	return Cross(v2 - v1, cp - v1)*planev > 0;
 }
 
 //fileio.cpp
@@ -204,13 +200,13 @@ void makeBound(model* m, int triag, _3DVec& boundMax, _3DVec& boundMin);
 bool triagInVoxel(model* m, int triag, voxel* v);
 void sortTriags(model* m, voxel* root);
 void createVoxels(voxel* voxels, int count);
-template<typename T, typename B>
-inline bool IsRayInV(const T &vox, const _3DVec& v, const _3DVec& p);
+
+bool IsRayInV(const voxel& vox, const _3DVec& v, const _3DVec& p);
 void createFaceList(_3DVec& v, _3DVec& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
 void preparemodel(model* m, _3DVec& boundMax, _3DVec& boundMin);
 intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
 
-//ranom generator
+//random generator
 namespace rnd
 {
 	uint32_t _rand();
@@ -218,59 +214,11 @@ namespace rnd
 	double rand(float a, float b);
 }
 
-
-#define SB_GET_LINE(a,b,c,p1,p2)	\
-	a = p1.y - p2.y; \
-	b = p2.x - p1.x; \
-	c = p1.x*p2.y - p2.x*p1.y;
-
-#define SB_GET_CLOTHEST_POINT(a,b,c,p,cp) \
-{\
-	float32 c1 = b*p.x - a*p.y; \
-	float32 det = a*a + b*b; \
-	cp.Set(-(a*c - b*c1) / det, -(a*c1 + b*c) / det); \
-}
-
-
-#define SB_POINT_IN_SEGMENT(p1,p2,c) \
-	(\
-	(((p2.x >= c.x) && (c.x >= p1.x)) || \
-	((p2.x <= c.x) && (c.x <= p1.x))) && \
-	(((p2.y >= c.y) && (c.y >= p1.y)) || \
-	((p2.y <= c.y) && (c.y <= p1.y)))  \
-	) \
-
-/* calc crossing point
-
-a1x+b1y+c1=0
-a2x+b2y+c2=0
-
--c1-b1y
-x = ---------
-a1
-a2       a2
-- ----c1 - ----b1y + b2y+c2 = 0
-a1       a1
-
-a2
----- c1  - c2
-a1
-y = -------------
-a2
-b2 - ---- b1
-a1
-
-a2c1 - a1c2
-y = -------------
-a1b2 - a2b1
-*/
-
-#define SB_GET_CROSSPOINT(a1,b1,c1,a2,b2,c2,l1p1,l1p2,l2p1,l2p2,cp,action) \
-	SB_GET_LINE(a1, b1, c1, l1p1, l1p2)\
-	SB_GET_LINE(a2, b2, c2, l2p1, l2p2)\
-{\
-	float tmp = a1*b2 - a2*b1; \
-if (tmp == 0.0f)\
-	action; \
-	cp.Set((b1*c2 - b2*c1) / tmp, (a2*c1 - a1*c2) / tmp); \
+//get line equation coefficients
+template<typename T>
+inline void GetLine(T& a, T& b, T& c, const _2DVec& p1, const _2DVec& p2)
+{
+	a = p1.y - p2.y;
+	b = p2.x - p1.x;
+	c = p1.x * p2.y - p2.x * p1.y;
 }

@@ -8,10 +8,10 @@
 #include <time.h>
 #include <thread>
 
-#define THREADCOUNT 8
-
 #include "main.h"
 #include "ConfigReader.h"
+
+#define THREADCOUNT 8
 
 //////////////////////////////
 short width;
@@ -213,7 +213,6 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 		normal[k] = m->normal[m->face_array[i].ivn[k]];
 		normal[k].Normalize();
 	}
-	_3DVec fnormal = m->face_array[i].normal;
 
 	//sorting by y coord
 	for (int iter = 0; iter < 4; iter++)
@@ -247,23 +246,23 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 	{
 		double tmpx = v[1].x;
 		double a, b, c;
-		SB_GET_LINE(a, b, c, v[0], v[2]);
+		GetLine(a, b, c, v[0], v[2]);
 		double x = (-c - b * ymid) / a;
 		if (x < 0 || x> 1.0)
 			return;
 		_2DVec vc(x, ymid);
 		if (tmpx < x)
 		{
-			SB_GET_LINE(line1l[0], line1l[1], line1l[2], v[0], v[1]);
-			SB_GET_LINE(line1r[0], line1r[1], line1r[2], v[0], vc);
-			SB_GET_LINE(line2l[0], line2l[1], line2l[2], v[1], v[2]);
-			SB_GET_LINE(line2r[0], line2r[1], line2r[2], vc, v[2]);
+			GetLine(line1l[0], line1l[1], line1l[2], v[0], v[1]);
+			GetLine(line1r[0], line1r[1], line1r[2], v[0], vc);
+			GetLine(line2l[0], line2l[1], line2l[2], v[1], v[2]);
+			GetLine(line2r[0], line2r[1], line2r[2], vc, v[2]);
 		}
 		else{
-			SB_GET_LINE(line1l[0], line1l[1], line1l[2], v[0], vc);
-			SB_GET_LINE(line1r[0], line1r[1], line1r[2], v[0], v[1]);
-			SB_GET_LINE(line2l[0], line2l[1], line2l[2], vc, v[2]);
-			SB_GET_LINE(line2r[0], line2r[1], line2r[2], v[1], v[2]);
+			GetLine(line1l[0], line1l[1], line1l[2], v[0], vc);
+			GetLine(line1r[0], line1r[1], line1r[2], v[0], v[1]);
+			GetLine(line2l[0], line2l[1], line2l[2], vc, v[2]);
+			GetLine(line2r[0], line2r[1], line2r[2], v[1], v[2]);
 		}
 	}
 	for (int part = 0; part < 2; part++)
@@ -408,7 +407,7 @@ inline float clamp(float x)
 
 int main(int argc, char* argv[])
 {
-	int startTime = time(NULL);
+	int startTime = time(0);
 	printf("reading data\n");
 
 	config = new Config;
@@ -546,7 +545,7 @@ int main(int argc, char* argv[])
 	}
 
 	printf("\nend tracing\n");
-	traceStartTime=time(NULL) - traceStartTime;
+	traceStartTime=time(0) - traceStartTime;
 	printf("writing data\n");
 	pixel* pixelbuff;
 	pixelbuff = new pixel[width*height];
@@ -555,10 +554,13 @@ int main(int argc, char* argv[])
 	for(int i=0;i<height;i++){
 		for(int j=0;j<width;j++){
 			int max = fpixelbuff_count[0][i * width + j];
-			pixelbuff[i * width + j].r = fpixelbuff_normal[i * width + j].r/max*255;
-			pixelbuff[i * width + j].g = fpixelbuff_normal[i * width + j].g/max*255;
-			pixelbuff[i * width + j].b = fpixelbuff_normal[i * width + j].b/max*255;
-			pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j]/max*255;
+			if (max > 0)
+			{
+				pixelbuff[i * width + j].r = fpixelbuff_normal[i * width + j].r / max * 255;
+				pixelbuff[i * width + j].g = fpixelbuff_normal[i * width + j].g / max * 255;
+				pixelbuff[i * width + j].b = fpixelbuff_normal[i * width + j].b / max * 255;
+				pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+			}
 		}
 	}
 	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_normal.tga")).c_str());
@@ -571,10 +573,13 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[k][i * width + j];
-				pixelbuff[i * width + j].r = fpixelbuff_diff[k][i * width + j].r / max * 255;
-				pixelbuff[i * width + j].g = fpixelbuff_diff[k][i * width + j].g / max * 255;
-				pixelbuff[i * width + j].b = fpixelbuff_diff[k][i * width + j].b / max * 255;
-				pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+				if (max > 0)
+				{
+					pixelbuff[i * width + j].r = fpixelbuff_diff[k][i * width + j].r / max * 255;
+					pixelbuff[i * width + j].g = fpixelbuff_diff[k][i * width + j].g / max * 255;
+					pixelbuff[i * width + j].b = fpixelbuff_diff[k][i * width + j].b / max * 255;
+					pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+				}
 			}
 		}
 		std::string name = std::string("_diff%d.tga");
@@ -586,10 +591,13 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[0][i * width + j];
-				pixelbuff[i * width + j].r = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
-				pixelbuff[i * width + j].g = clamp(fpixelbuff_gi[k][i * width + j].g / max) * 255;
-				pixelbuff[i * width + j].b = clamp(fpixelbuff_gi[k][i * width + j].b / max) * 255;
-				pixelbuff[i * width + j].a = clamp(fpixelbuff_alpha[i * width + j] / max) * 255;
+				if (max > 0)
+				{
+					pixelbuff[i * width + j].r = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
+					pixelbuff[i * width + j].g = clamp(fpixelbuff_gi[k][i * width + j].g / max) * 255;
+					pixelbuff[i * width + j].b = clamp(fpixelbuff_gi[k][i * width + j].b / max) * 255;
+					pixelbuff[i * width + j].a = clamp(fpixelbuff_alpha[i * width + j] / max) * 255;
+				}
 			}
 		}
 		name = std::string("_gi%d.tga");
@@ -601,13 +609,16 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
 				int max = fpixelbuff_count[0][i * width + j];
-				fpixelbuff_gi_normal[k][i * width + j].Normalize();
-				_3DVec ginormal = fpixelbuff_gi_normal[k][i * width + j];
-				ginormal.Normalize();
-				pixelbuff[i * width + j].r = (ginormal.x + 1.0f) / 2.0f * 255;
-				pixelbuff[i * width + j].g = (ginormal.y + 1.0f) / 2.0f * 255;
-				pixelbuff[i * width + j].b = (ginormal.z + 1.0f) / 2.0f * 255;
-				pixelbuff[i * width + j].a = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
+				if (max > 0)
+				{
+					fpixelbuff_gi_normal[k][i * width + j].Normalize();
+					_3DVec ginormal = fpixelbuff_gi_normal[k][i * width + j];
+					ginormal.Normalize();
+					pixelbuff[i * width + j].r = (ginormal.x + 1.0f) / 2.0f * 255;
+					pixelbuff[i * width + j].g = (ginormal.y + 1.0f) / 2.0f * 255;
+					pixelbuff[i * width + j].b = (ginormal.z + 1.0f) / 2.0f * 255;
+					pixelbuff[i * width + j].a = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
+				}
 			}
 		}
 		name = std::string("_gi_normal%d.tga");
@@ -616,7 +627,7 @@ int main(int argc, char* argv[])
 		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 	}
 
-	printf("\ntotal time is %d\n",time(NULL)-startTime);
+	printf("\ntotal time is %d\n", int(time(0)-startTime));
 	printf("trace time is %d\n",traceStartTime);
 	getchar();
 }
@@ -637,8 +648,8 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 			//find distanse
 			double t = v * (f.center - p);
 			double dist = (v * t - f.center + p).Length2();
-			if (dist<f.size_){
-			//if (IsRayInV<face, _3DVec>(f,v, p)){
+			if (dist<f.size_)
+			{
 				_3DVec planev = _3DVec(f.a, f.b, f.c);
 				double tmp = planev * v;
 				if (tmp != 0){
@@ -707,7 +718,7 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 
 void CreateVoxelList(voxel* vox, const _3DVec& v, const _3DVec& p, int* c, voxel** voxellist)
 {
-	if (IsRayInV<voxel, _3DVec>(*vox, v, p))
+	if (IsRayInV(*vox, v, p))
 	{
 		if(vox->last)
 		{
@@ -754,10 +765,9 @@ void createFaceList(_3DVec& v, _3DVec& p, int* facelist, int &facelistCount, vox
 	}
 }
 
-template<typename T, typename B>
-inline bool IsRayInV(const T &vox, const _3DVec& v, const _3DVec& p)
+inline bool IsRayInV(const voxel& vox, const _3DVec& v, const _3DVec& p)
 {
-	const B& size = vox.size;
+	const _3DVec size = vox.size;
 	const _3DVec p_ = vox.center - p;
 	const _3DVec p_p_s = 1.0 / (p_ + size);
 	const _3DVec p_m_s = 1.0 / (p_ - size);

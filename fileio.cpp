@@ -9,6 +9,8 @@
 #include <math.h>
 #include "main.h"
 
+#pragma GCC diagnostic ignored "-Wunused-result"
+
 
 inline bool exists (const std::string& name) {
     if (FILE *file = fopen(name.c_str(), "r")) {

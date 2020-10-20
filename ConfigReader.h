@@ -14,9 +14,6 @@ public:
 	virtual int GetInt();
 	virtual bool GetBool();
 	virtual float GetFloat();
-	virtual	const fpixel& GetFPixel();
-	virtual const pixel& GetPixel();
-	virtual const _3DVec& Get3DVec();
 	virtual const char* GetStr();
 };
 
