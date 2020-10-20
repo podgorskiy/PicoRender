@@ -58,30 +58,32 @@ int main(int argc, char* argv[])
 	int height = diffTex->height;
 
 	fpixel* diff			= new fpixel[width*height];
-	_3DVec* normal			= new _3DVec[width*height];
+	vec3* normal			= new vec3[width*height];
 	float* gi				= new float[width*height];
-	_3DVec* gi_normal		= new _3DVec[width*height];
+	vec3* gi_normal		    = new vec3[width*height];
 	float* alpha			= new float[width*height];
 
 	for(int i=0;i<diffTex->height;i++){
 		for(int j=0;j<diffTex->width;j++){
 			float max = 255;
 			diff[i * width + j] = fpixel(
-				diffTex->buff[i * width + j].r/max,
-				diffTex->buff[i * width + j].g/max,
-				diffTex->buff[i * width + j].b/max);
+				pow(diffTex->buff[i * width + j].r/max, 2.2),
+				pow(diffTex->buff[i * width + j].g/max, 2.2),
+				pow(diffTex->buff[i * width + j].b/max, 2.2));
 			alpha[i * width + j] = diffTex->buff[i * width + j].a/max;
-			normal[i * width + j] = _3DVec(
+			normal[i * width + j] = vec3(
 				(normalTex->buff[i * width + j].r/max - 0.5f)*2.0f,
 				(normalTex->buff[i * width + j].g/max - 0.5f)*2.0f,
 				(normalTex->buff[i * width + j].b/max - 0.5f)*2.0f);
-			if(normal[i * width + j].Length()>0.8f)
-				normal[i * width + j].Normalize();
-			gi_normal[i * width + j] = _3DVec(
+			if(glm::length(normal[i * width + j])>0.8f)
+			{
+				normal[i * width + j] = glm::normalize(normal[i * width + j]);
+			}
+			gi_normal[i * width + j] = vec3(
 				(gi_normalTex->buff[i * width + j].r/max - 0.5f)*2.0f,
 				(gi_normalTex->buff[i * width + j].g/max - 0.5f)*2.0f,
 				(gi_normalTex->buff[i * width + j].b/max - 0.5f)*2.0f);
-			gi_normal[i * width + j].Normalize();
+			gi_normal[i * width + j] = glm::normalize(gi_normal[i * width + j]);
 			gi[i * width + j] = gi_normalTex->buff[i * width + j].a/max;
 
 		}
@@ -92,22 +94,22 @@ int main(int argc, char* argv[])
 
 	for(int i=0;i<diffTex->height;i++){
 		for(int j=0;j<diffTex->width;j++){
-			_3DVec normal_ = normal[i * width + j];
+			vec3 normal_ = normal[i * width + j];
 			if(normal_.Length()>0.8f)
 				normal_.Normalize();
-			_3DVec gi_normal_ = gi_normal[i * width + j];
+			vec3 gi_normal_ = gi_normal[i * width + j];
 			gi_normal_.Normalize();
 			if(j<width-1)gi_normal_ += gi_normal[i * width + j+1];
 			if(j>0)gi_normal_ += gi_normal[i * width + j-1];
 			if(i<height-1)gi_normal_ += gi_normal[(i+1) * width + j];
 			if(i>0)gi_normal_ += gi_normal[(i-1) * width + j];
 			gi_normal_.Normalize();
-			_3DVec light = _3DVec(lightDirX,lightDirY,lightDirZ);
-			_3DVec eye = _3DVec(0.0f,0.0f,-1.0f);
+			vec3 light = vec3(lightDirX,lightDirY,lightDirZ);
+			vec3 eye = vec3(0.0f,0.0f,-1.0f);
 			light.Normalize();
 			float diff_ = -normal_*light;
 			if(diff_<0) diff_ = 0;
-			_3DVec reflect = -light + 2 * normal_ * (light * normal_);
+			vec3 reflect = -light + 2 * normal_ * (light * normal_);
 			float spec = pow(saturate(-eye*reflect),config->GetField("rpower")->GetFloat())*config->GetField("r")->GetFloat();
 			spec*= (diff[i * width + j].r + diff[i * width + j].g + diff[i * width + j].b)/3.0f;
 			float gi_ = -gi_normal_*light;
