@@ -676,8 +676,9 @@ int main(int argc, char* argv[])
 		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 	}
 
-	printf("\ntotal time is %d\n", int(time(nullptr)-startTime));
+	printf("\nDone\ntotal time is %d\n", int(time(nullptr)-startTime));
 	printf("trace time is %d\n",traceStartTime);
+	printf("[press any key]\n");
 	getchar();
 }
 
