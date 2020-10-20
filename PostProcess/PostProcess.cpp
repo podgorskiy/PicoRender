@@ -67,9 +67,9 @@ int main(int argc, char* argv[])
 		for(int j=0;j<diffTex->width;j++){
 			float max = 255;
 			diff[i * width + j] = fpixel(
-				diffTex->buff[i * width + j].r/max,
-				diffTex->buff[i * width + j].g/max,
-				diffTex->buff[i * width + j].b/max);
+				pow(diffTex->buff[i * width + j].r/max, 2.2),
+				pow(diffTex->buff[i * width + j].g/max, 2.2),
+				pow(diffTex->buff[i * width + j].b/max, 2.2));
 			alpha[i * width + j] = diffTex->buff[i * width + j].a/max;
 			normal[i * width + j] = _3DVec(
 				(normalTex->buff[i * width + j].r/max - 0.5f)*2.0f,

@@ -14,8 +14,18 @@ The main purpose was to produce ambient occlusion maps and [bent normal](http://
 
 |   |           Camera space   |           Texture space  |
 :---|:------------------------:|:-------------------------:
-Albido | ![](example_images/example_camera_diff0.png)  |  ![](example_images/example_texture_space_diff0.png)
-Ambient Occlusion | ![](example_images/example_camera_gi0.png)  |  ![](example_images/example_texture_space_gi0.png)
-Normals | ![](example_images/example_camera_normal.png)  |  ![](example_images/example_texture_space_normal.png)
-Bent Normals (AO in alpha)| ![](example_images/example_camera_gi_normal0.png)  |  ![](example_images/example_texture_space_gi_normal0.png)
-Composition | ![](example_images/example_camera_composed.png)  |  ![](example_images/example_texture_space_composed.png)
+Albido | ![](example_images/example_orthogonal_projection_albido.png)  |  ![](example_images/example_texture_space_albido.png)
+Ambient Occlusion / Lightmap| ![](example_images/example_orthogonal_projection_gi.png)  |  ![](example_images/example_texture_space_gi.png)
+Normals | ![](example_images/example_orthogonal_projection_normal.png)  |  ![](example_images/example_texture_space_normal.png)
+Bent Normals (AO in alpha)| ![](example_images/example_orthogonal_projection_gi_normal.png)  |  ![](example_images/example_texture_space_gi_normal.png)
+Composition | ![](example_images/example_orthogonal_projection_composed.png)  |  ![](example_images/example_texture_space_composed.png)
+
+
+
+|   |           Camera space   |           Texture space  |
+:---|:------------------------:|:-------------------------:
+Total Ambient Occlusion / Lightmap| ![](example_images/example_orthogonal_projection_gi.png)  |  ![](example_images/example_texture_space_gi.png)
+Bounce 1 | ![](example_images/example_orthogonal_projection_gi_by_bounce1.png)  |  ![](example_images/example_texture_space_gi_by_bounce1.png)
+Bounce 2 | ![](example_images/example_orthogonal_projection_gi_by_bounce2.png)  |  ![](example_images/example_texture_space_gi_by_bounce2.png)
+Bounce 3 | ![](example_images/example_orthogonal_projection_gi_by_bounce3.png)  |  ![](example_images/example_texture_space_gi_by_bounce3.png)
+Bounce 4 | ![](example_images/example_orthogonal_projection_gi_by_bounce4.png)  |  ![](example_images/example_texture_space_gi_by_bounce4.png)
