@@ -700,6 +700,7 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 	intersection r; 
 	r.face=-1;
 	r.distance = 1e6;
+	bool flip = false;
 	int key = rnd::_rand();
 	face* fa = m->face_array;
 	createFaceList(v, p, facelist, facelistCount, voxellist, voxellistCount);
@@ -730,7 +731,7 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 								r.distance = t;
 								r.face = i;
 								r.cp = cp;
-								r.normal = f.normal;
+								flip = v * f.normal < 0.;
 							}
 						}
 					}
@@ -766,6 +767,11 @@ intersection findintersection(model* m, _3DVec v, _3DVec& p, int* facelist, int 
 		_3DVec ay(c1*n2,c2*n2,c3*n2);
 		_3DVec az(c1*n3,c2*n3,c3*n3);
 		r.normal = _3DVec(ax*lcp,ay*lcp,az*lcp);
+		if (flip)
+		{
+			r.normal = -r.normal;
+		}
+
 		///////////////////////////////////////////////////////
 		_2DVec t1 = m->texcoord[m->face_array[r.face].ivt[0]];   
 		_2DVec t2 = m->texcoord[m->face_array[r.face].ivt[1]]; 
