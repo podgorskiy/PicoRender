@@ -696,6 +696,7 @@ intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &face
 	r.distance = 1e6;
 	int key = rnd::_rand();
 	face* fa = m->face_array;
+	bool flip = false;
 	createFaceList(v, p, facelist, facelistCount, voxellist, voxellistCount);
 	for (int i_=0;i_<facelistCount;i_++){
 		int i = facelist[i_];
@@ -727,7 +728,7 @@ intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &face
 								r.distance = t;
 								r.face = i;
 								r.cp = cp;
-								r.normal = f.normal;
+								flip = glm::dot(v, f.normal) < 0.;
 							}
 						}
 					}
@@ -765,6 +766,11 @@ intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &face
 		vec3 ay(glm::dot(c1,n2),glm::dot(c2,n2),glm::dot(c3,n2));
 		vec3 az(glm::dot(c1,n3),glm::dot(c2,n3),glm::dot(c3,n3));
 		r.normal = glm::normalize(vec3(glm::dot(ax, lcp), glm::dot(ay, lcp), glm::dot(az, lcp)));
+		if (flip)
+		{
+			r.normal = -r.normal;
+		}
+
 		///////////////////////////////////////////////////////
 		vec2 t1 = m->texcoord[m->face_array[r.face].ivt[0]];
 		vec2 t2 = m->texcoord[m->face_array[r.face].ivt[1]];
