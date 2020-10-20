@@ -53,6 +53,7 @@ struct exeArg
 
 	fpixel* fpixelbuff_albido;
 	_3DVec* fpixelbuff_normal;
+	fpixel* fpixelbuff_final;
 	float* fpixelbuff_depth;
 	fpixel** fpixelbuff_gi_by_bounce;
 	fpixel* fpixelbuff_gi;
@@ -94,6 +95,7 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 	fpixel color(1.0,1.0,1.0);
 	fpixel albido(1.0,1.0,1.0);
 	_3DVec bent_normal(0.0, 0.0, 0.0);
+	_3DVec regular_normal(0.0, 0.0, 0.0);
 	fpixel attenuation;
 
 	intersection is;
@@ -119,12 +121,14 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 			int uv_u = ((int) (is.texcoord.x * arg->tex->width)) % arg->tex->width;
 			int uv_v = ((int) (is.texcoord.y * arg->tex->height)) % arg->tex->height;
 			attenuation = arg->tex->buff[uv_u + uv_v * arg->tex->width];
+			attenuation = fpixel(pow(attenuation.r, 2.2), pow(attenuation.g, 2.2), pow(attenuation.b, 2.2));
 
 			v = lambertNoTangent(is.normal);
 
 			if (k == 0)
 			{
 				albido = attenuation;
+				regular_normal = is.normal;
 				attenuation = fpixel(1.0,1.0,1.0);
 				bent_normal = v;
 			}
@@ -149,14 +153,15 @@ inline void Trace(_3DVec pos, _3DVec v, _3DVec normal, int i, int j, exeArg* arg
 		fpixel lightColor = light * color;
 		float magnitude = sqrt(lightColor.r + lightColor.g + lightColor.b) / 3.0f;
 
-		arg->fpixelbuff_normal[i * width + j] += normal;
+		arg->fpixelbuff_normal[i * width + j] += regular_normal;
 		arg->fpixelbuff_albido[i * width + j] += albido;
 
 		arg->fpixelbuff_gi_normal[i * width + j] += bent_normal * magnitude;
 		if (k != bounce)
-			arg->fpixelbuff_gi_by_bounce[k][i * width + j] += lightColor;
+			arg->fpixelbuff_gi_by_bounce[k - 1][i * width + j] += lightColor;
 		arg->fpixelbuff_gi[i * width + j] += lightColor;
 		arg->fpixelbuff_count[i * width + j] += 1;
+		arg->fpixelbuff_final[i * width + j] += lightColor * albido;
 	}
 }
 
@@ -417,13 +422,6 @@ bool renderRutine(exeArg *arg)
 		return true;
 }
 
-
-inline float clamp(float x)
-{
-	if (x > 1.0f) return 1.0f;
-	return x;
-}
-
 uint8_t to8bit(float x)
 {
 	x *= 255.;
@@ -505,20 +503,21 @@ int main(int argc, char* argv[])
 
 	int*	fpixelbuff_count = new int[2 * width*height];
 	fpixel* fpixelbuff_albido = new fpixel[2 * width*height];
+	fpixel* fpixelbuff_final = new fpixel[2 * width*height];
 	_3DVec* fpixelbuff_normal = new _3DVec[2 * width*height];
 	float* fpixelbuff_depth = new float[2 * width*height];
 	_3DVec* fpixelbuff_gi_normal = new _3DVec[2 * width*height];
 	fpixel* fpixelbuff_gi = new fpixel[2 * width*height];
-	fpixel** fpixelbuff_gi_by_bounce = new fpixel*[bounce];
+	fpixel** fpixelbuff_gi_by_bounce = new fpixel*[bounce - 1];
 
-	for (int i = 0; i < bounce; i++)
+	for (int i = 0; i < bounce - 1; i++)
 	{
 		fpixelbuff_gi_by_bounce[i] = new fpixel[2 * width*height];
 	}
 
 	for(int i=0;i<height;i++){
 		for (int j = 0; j<width; j++){
-			for (int k = 0; k < bounce; k++)
+			for (int k = 0; k < bounce - 1; k++)
 			{
 				fpixelbuff_gi_by_bounce[k][i * width + j].Set(0.0f);
 			}
@@ -527,6 +526,7 @@ int main(int argc, char* argv[])
 			fpixelbuff_normal[i * width + j].Set(0, 0, 0);
 			fpixelbuff_depth[i * width + j] = 0;
 			fpixelbuff_albido[i * width + j].Set(0, 0, 0);
+			fpixelbuff_final[i * width + j].Set(0, 0, 0);
 		}
 	}
 
@@ -555,6 +555,7 @@ int main(int argc, char* argv[])
 		args[i].fpixelbuff_gi = fpixelbuff_gi;
 		args[i].fpixelbuff_gi_normal = fpixelbuff_gi_normal;
 		args[i].fpixelbuff_gi_by_bounce = fpixelbuff_gi_by_bounce;
+		args[i].fpixelbuff_final = fpixelbuff_final;
 		args[i].height = height;
 		args[i].voxellist = new voxel*[lastVoxelCount * 2];
 		args[i].facelist = new int[m->iface * 2];
@@ -581,7 +582,6 @@ int main(int argc, char* argv[])
 	pixel* pixelbuff;
 	pixelbuff = new pixel[width*height];
 
-	//nomal
 	for(int i=0;i<height;i++){
 		for(int j=0;j<width;j++){
 			int c = fpixelbuff_count[i * width + j];
@@ -598,20 +598,33 @@ int main(int argc, char* argv[])
 	}
 	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_normal.tga")).c_str());
 
-	//nomal
 	for(int i=0;i<height;i++){
 		for(int j=0;j<width;j++){
 			int c = fpixelbuff_count[i * width + j];
 			if (c > 0)
 			{
-				pixelbuff[i * width + j].r = to8bit(fpixelbuff_albido[i * width + j].r / c);
-				pixelbuff[i * width + j].g = to8bit(fpixelbuff_albido[i * width + j].g / c);
-				pixelbuff[i * width + j].b = to8bit(fpixelbuff_albido[i * width + j].b / c);
+				pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_albido[i * width + j].r / c));
+				pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_albido[i * width + j].g / c));
+				pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_albido[i * width + j].b / c));
 			}
 			pixelbuff[i * width + j].a = to8bit(float(c) / sampleCount);
 		}
 	}
 	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_albido.tga")).c_str());
+
+	for(int i=0;i<height;i++){
+		for(int j=0;j<width;j++){
+			int c = fpixelbuff_count[i * width + j];
+			if (c > 0)
+			{
+				pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_final[i * width + j].r / c));
+				pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_final[i * width + j].g / c));
+				pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_final[i * width + j].b / c));
+			}
+			pixelbuff[i * width + j].a = to8bit(float(c) / sampleCount);
+		}
+	}
+	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_final.tga")).c_str());
 
 	//gi normal
 	for (int i = 0; i < height; i++)
@@ -644,16 +657,16 @@ int main(int argc, char* argv[])
 			int c = fpixelbuff_count[i * width + j];
 			if (c > 0)
 			{
-				pixelbuff[i * width + j].r = to8bit(fpixelbuff_gi[i * width + j].r / c);
-				pixelbuff[i * width + j].g = to8bit(fpixelbuff_gi[i * width + j].g / c);
-				pixelbuff[i * width + j].b = to8bit(fpixelbuff_gi[i * width + j].b / c);
+				pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_gi[i * width + j].r / c));
+				pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_gi[i * width + j].g / c));
+				pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_gi[i * width + j].b / c));
 			}
 			pixelbuff[i * width + j].a = to8bit(float(c) / sampleCount);
 		}
 	}
 	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_gi.tga")).c_str());
 
-	for (int k = 0; k < bounce;k++)
+	for (int k = 0; k < bounce - 1;k++)
 	{
 		char name_[255];
 
@@ -663,15 +676,15 @@ int main(int argc, char* argv[])
 				int c = fpixelbuff_count[i * width + j];
 				if (c > 0)
 				{
-					pixelbuff[i * width + j].r = to8bit(fpixelbuff_gi_by_bounce[k][i * width + j].r / c);
-					pixelbuff[i * width + j].g = to8bit(fpixelbuff_gi_by_bounce[k][i * width + j].g / c);
-					pixelbuff[i * width + j].b = to8bit(fpixelbuff_gi_by_bounce[k][i * width + j].b / c);
+					pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_gi_by_bounce[k][i * width + j].r / c));
+					pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_gi_by_bounce[k][i * width + j].g / c));
+					pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_gi_by_bounce[k][i * width + j].b / c));
 				}
 				pixelbuff[i * width + j].a = to8bit(float(c) / sampleCount);
 			}
 		}
 		std::string name("_gi_by_bounce%d.tga");
-		sprintf(name_, name.c_str(), k);
+		sprintf(name_, name.c_str(), k + 1);
 		name = name_;
 		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 	}
