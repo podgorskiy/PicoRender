@@ -53,13 +53,14 @@ struct exeArg
 
 	int lightmapSize;
 
-	fpixel** fpixelbuff_diff;
-	fpixel* fpixelbuff_normal;
+	fpixel* fpixelbuff_albido;
+	vec3* fpixelbuff_normal;
+	fpixel* fpixelbuff_final;
 	float* fpixelbuff_depth;
-	fpixel** fpixelbuff_gi;
-	vec3** fpixelbuff_gi_normal;
-	float* fpixelbuff_alpha;
-	int**	fpixelbuff_count;
+	fpixel** fpixelbuff_gi_by_bounce;
+	fpixel* fpixelbuff_gi;
+	vec3* fpixelbuff_gi_normal;
+	int*	fpixelbuff_count;
 	
 	texture* tex;
 
@@ -91,55 +92,78 @@ inline void Trace(vec3 pos, vec3 v, vec3 normal, int i, int j, exeArg* arg)
 	int facelistCount;
 	voxel** voxellist = arg->voxellist;
 	int voxellistCount;
+
+	fpixel light(0.0,0.0,0.0);
+	fpixel color(1.0,1.0,1.0);
+	fpixel albido(1.0,1.0,1.0);
+	vec3 bent_normal(0.0, 0.0, 0.0);
+	vec3 regular_normal(0.0, 0.0, 0.0);
+	fpixel attenuation;
+
 	intersection is;
+	is.cp = pos;
 
-	fpixel lightColor(1.0,1.0,1.0);
-
-	if (!renderInTex)
+	int k = 0;
+	for (; k < bounce; k++)
 	{
-		is = findintersection(m, v, pos, facelist, facelistCount, voxellist, voxellistCount);
-	}
-	else //we assume that we already have point of intersection of imaginary ray with surface
-	{
-		is.cp = pos;
-		is.face = 0;
-		is.normal = normal; //this normal is normal of sampling surface for texture rendering
-		is.texcoord.x = (float)(j) / width;
-		is.texcoord.y = (float)(i) / width;
-	}
-	for (int k = 0; k < bounce; k++)
-	{
-		if (is.face != -1){
-			arg->fpixelbuff_count[k][i * width + j] += 1;
-
-			vec3 rand_v = lambertNoTangent(is.normal);
-
-			intersection ris = findintersection(m, rand_v, is.cp, facelist, facelistCount, voxellist, voxellistCount);
-
-			if (ris.face == -1){
-				arg->fpixelbuff_gi[k][i * width + j] += 1.0f;
-				arg->fpixelbuff_gi_normal[k][i * width + j] += rand_v;
-			}
-			int u = ((int)(is.texcoord.x*arg->tex->width)) % arg->tex->width;
-			int v = ((int)(is.texcoord.y*arg->tex->height)) % arg->tex->height;
-			is.normal = glm::normalize(vec3(is.normal));
-
-			fpixel tp(arg->tex->buff[u + v * arg->tex->width]);
-			lightColor *= tp;
-			arg->fpixelbuff_diff[k][i * width + j] += lightColor;
-			if (k == 0)
-			{
-				arg->fpixelbuff_alpha[i * width + j] += 1.0f;
-				fpixel normal((is.normal.x + 1.0f) / 2.0, (is.normal.y + 1.0f) / 2.0, (is.normal.z + 1.0f) / 2.0);
-				arg->fpixelbuff_normal[i * width + j] += normal;
-				arg->fpixelbuff_depth[i * width + j] += is.distance;
-			}
-			is = ris;
+		if (renderInTex && k == 0)  //we assume that we have point of intersection of imaginary ray with surface
+		{
+			is.face = 0;
+			is.normal = normal;
+			is.texcoord.x = (float)(j) / width;
+			is.texcoord.y = (float)(i) / width;
 		}
 		else
 		{
+			is = findintersection(m, v, is.cp, facelist, facelistCount, voxellist, voxellistCount);
+		}
+		if (is.face != -1)
+		{
+			is.normal = glm::normalize(is.normal);
+			int uv_u = ((int) (is.texcoord.x * arg->tex->width)) % arg->tex->width;
+			int uv_v = ((int) (is.texcoord.y * arg->tex->height)) % arg->tex->height;
+			attenuation = arg->tex->buff[uv_u + uv_v * arg->tex->width];
+			attenuation = fpixel(pow(attenuation.r, 2.2), pow(attenuation.g, 2.2), pow(attenuation.b, 2.2));
+
+			v = lambertNoTangent(is.normal);
+
+			if (k == 0)
+			{
+				albido = attenuation;
+				regular_normal = is.normal;
+				attenuation = fpixel(1.0,1.0,1.0);
+				bent_normal = v;
+			}
+
+            if (color.r > 0.01 || color.g > 0.01 || color.b > 0.01)
+                color = color * attenuation;
+            else
+            {
+                color = fpixel(0.0f, 0.0f, 0.0f);
+                break;
+            }
+		}
+		else
+		{
+			light = fpixel(1.0, 1.0, 1.0);
 			break;
 		}
+	}
+
+	if (k != 0) // was hit
+	{
+		fpixel lightColor = light * color;
+		scalar magnitude = sqrt(lightColor.r + lightColor.g + lightColor.b) / 3.0;
+
+		arg->fpixelbuff_normal[i * width + j] += regular_normal;
+		arg->fpixelbuff_albido[i * width + j] += albido;
+
+		arg->fpixelbuff_gi_normal[i * width + j] += bent_normal * magnitude;
+		if (k != bounce)
+			arg->fpixelbuff_gi_by_bounce[k - 1][i * width + j] += lightColor;
+		arg->fpixelbuff_gi[i * width + j] += lightColor;
+		arg->fpixelbuff_count[i * width + j] += 1;
+		arg->fpixelbuff_final[i * width + j] += lightColor * albido;
 	}
 }
 
@@ -248,23 +272,23 @@ void renderTriangle(model* m, int lightmapSize, int i, int iterk, exeArg *arg, f
 	{
 		double tmpx = v[1].x;
 		double a, b, c;
-		SB_GET_LINE(a, b, c, v[0], v[2]);
+		GetLine(a, b, c, v[0], v[2]);
 		double x = (-c - b * ymid) / a;
 		if (x < 0 || x> 1.0)
 			return;
 		vec2 vc(x, ymid);
 		if (tmpx < x)
 		{
-			SB_GET_LINE(line1l[0], line1l[1], line1l[2], v[0], v[1]);
-			SB_GET_LINE(line1r[0], line1r[1], line1r[2], v[0], vc);
-			SB_GET_LINE(line2l[0], line2l[1], line2l[2], v[1], v[2]);
-			SB_GET_LINE(line2r[0], line2r[1], line2r[2], vc, v[2]);
+			GetLine(line1l[0], line1l[1], line1l[2], v[0], v[1]);
+			GetLine(line1r[0], line1r[1], line1r[2], v[0], vc);
+			GetLine(line2l[0], line2l[1], line2l[2], v[1], v[2]);
+			GetLine(line2r[0], line2r[1], line2r[2], vc, v[2]);
 		}
 		else{
-			SB_GET_LINE(line1l[0], line1l[1], line1l[2], v[0], vc);
-			SB_GET_LINE(line1r[0], line1r[1], line1r[2], v[0], v[1]);
-			SB_GET_LINE(line2l[0], line2l[1], line2l[2], vc, v[2]);
-			SB_GET_LINE(line2r[0], line2r[1], line2r[2], v[1], v[2]);
+			GetLine(line1l[0], line1l[1], line1l[2], v[0], vc);
+			GetLine(line1r[0], line1r[1], line1r[2], v[0], v[1]);
+			GetLine(line2l[0], line2l[1], line2l[2], vc, v[2]);
+			GetLine(line2r[0], line2r[1], line2r[2], v[1], v[2]);
 		}
 	}
 	for (int part = 0; part < 2; part++)
@@ -398,16 +422,22 @@ bool renderRutine(exeArg *arg)
 		return true;
 }
 
-
-inline float clamp(float x)
+uint8_t to8bit(float x)
 {
-	if (x > 1.0f) return 1.0f;
-	return x;
+	x *= 255.;
+	x = x < 0 ? 0. : x;
+	int r = int(round(x));
+	return r > 255 ? 255 : (r < 0 ? 0 : r);
+}
+
+float gamma(float x)
+{
+	return pow(x, 1. / 2.2);
 }
 
 int main(int argc, char* argv[])
 {
-	int startTime = time(0);
+	int startTime = time(nullptr);
 	printf("reading data\n");
 
 	config = new Config;
@@ -442,8 +472,8 @@ int main(int argc, char* argv[])
 	rvoxel->empty = false;
 	rvoxel->boundMax = boundMax;
 	rvoxel->boundMin = boundMin;
-	rvoxel->center = (rvoxel->boundMin + rvoxel->boundMax) / 2.0;
-	rvoxel->size = (rvoxel->boundMax - rvoxel->boundMin) / 2.0;
+	rvoxel->center = (rvoxel->boundMin + rvoxel->boundMax)/2.0;
+	rvoxel->size = (rvoxel->boundMax - rvoxel->boundMin)/2.0;
 
 	int vcount = pow(2,voxelCount);
 	vcount = pow(vcount,3);
@@ -454,52 +484,52 @@ int main(int argc, char* argv[])
 	createVoxels(rvoxel,voxelCount);
 
 	sortTriags(m,rvoxel);
-	
-	float boundaspect = ((float)boundMin.x - (float)boundMax.x)/((float)boundMin.y - (float)boundMax.y);
-	if(boundaspect>((float)width/(float)height))
+
+	float boundaspect = ((float) boundMin.x - (float) boundMax.x) / ((float) boundMin.y - (float) boundMax.y);
+	if (boundaspect > ((float) width / (float) height))
 	{
-	float boundys = (float)height/(float)width*((float)boundMax.x - (float)boundMin.x);
-	float bc = (boundMin.y + boundMax.y)/2.0f;
-	boundMin.y = bc - boundys/2.0f;
-	boundMax.y = bc + boundys/2.0f;
+		float boundys = (float) height / (float) width * ((float) boundMax.x - (float) boundMin.x);
+		float bc = (boundMin.y + boundMax.y) / 2.0f;
+		boundMin.y = bc - boundys / 2.0f;
+		boundMax.y = bc + boundys / 2.0f;
 	}
 	else
 	{
-	float boundxs = (float)width/(float)height*((float)boundMax.y - (float)boundMin.y);
-	float bc = (boundMin.x + boundMax.x)/2.0f;
-	boundMin.x = bc - boundxs/2.0f;
-	boundMax.x = bc + boundxs/2.0f;
+		float boundxs = (float) width / (float) height * ((float) boundMax.y - (float) boundMin.y);
+		float bc = (boundMin.x + boundMax.x) / 2.0f;
+		boundMin.x = bc - boundxs / 2.0f;
+		boundMax.x = bc + boundxs / 2.0f;
 	}
-	int**	fpixelbuff_count = new int*[bounce];
-	fpixel** fpixelbuff_diff = new fpixel*[bounce];
-	fpixel** fpixelbuff_gi = new fpixel*[bounce];
-	vec3** fpixelbuff_gi_normal = new vec3*[bounce];
-	for (int i = 0; i < bounce; i++)
-	{
-		fpixelbuff_count[i] = new int[2 * width*height];
-		fpixelbuff_diff[i] = new fpixel[2 * width*height];
-		fpixelbuff_gi[i] = new fpixel[2 * width*height];
-		fpixelbuff_gi_normal[i] = new vec3[2 * width*height];
-	}
-	fpixel* fpixelbuff_normal = new fpixel[2 * width*height];
+
+	int*	fpixelbuff_count = new int[2 * width*height];
+	fpixel* fpixelbuff_albido = new fpixel[2 * width*height];
+	fpixel* fpixelbuff_final = new fpixel[2 * width*height];
+	vec3* fpixelbuff_normal = new vec3[2 * width*height];
 	float* fpixelbuff_depth = new float[2 * width*height];
-	float* fpixelbuff_alpha = new float[2 * width*height];
+	vec3* fpixelbuff_gi_normal = new vec3[2 * width*height];
+	fpixel* fpixelbuff_gi = new fpixel[2 * width*height];
+	fpixel** fpixelbuff_gi_by_bounce = new fpixel*[bounce - 1];
+
+	for (int i = 0; i < bounce - 1; i++)
+	{
+		fpixelbuff_gi_by_bounce[i] = new fpixel[2 * width*height];
+	}
 
 	for(int i=0;i<height;i++){
 		for (int j = 0; j<width; j++){
-			for (int k = 0; k < bounce; k++)
+			for (int k = 0; k < bounce - 1; k++)
 			{
-				fpixelbuff_count[k][i * width + j] = 0;
-				fpixelbuff_diff[k][i * width + j].Set(0.0f);
-				fpixelbuff_gi[k][i * width + j].Set(0.0f);
-				fpixelbuff_gi_normal[k][i * width + j] = vec3(0, 0, 0);
+				fpixelbuff_gi_by_bounce[k][i * width + j].Set(0.0f);
 			}
-			fpixelbuff_normal[i * width + j].Set(0.0f);
+			fpixelbuff_gi_normal[i * width + j] = vec3(0, 0, 0);
+			fpixelbuff_gi[i * width + j].Set(0, 0, 0);
+			fpixelbuff_normal[i * width + j] = vec3(0, 0, 0);
 			fpixelbuff_depth[i * width + j] = 0;
-			fpixelbuff_alpha[i * width + j] = 0;
+			fpixelbuff_albido[i * width + j].Set(0, 0, 0);
+			fpixelbuff_final[i * width + j].Set(0, 0, 0);
 		}
 	}
-		
+
 	printf("begin tracing\n");
 	int traceStartTime = time(NULL);
 
@@ -519,12 +549,13 @@ int main(int argc, char* argv[])
 		args[i].iterk = sampleCount;
 		args[i].lightmapSize = height;
 		args[i].fpixelbuff_count = fpixelbuff_count;
-		args[i].fpixelbuff_diff = fpixelbuff_diff;
+		args[i].fpixelbuff_albido = fpixelbuff_albido;
 		args[i].fpixelbuff_normal = fpixelbuff_normal;
 		args[i].fpixelbuff_depth = fpixelbuff_depth;
 		args[i].fpixelbuff_gi = fpixelbuff_gi;
 		args[i].fpixelbuff_gi_normal = fpixelbuff_gi_normal;
-		args[i].fpixelbuff_alpha = fpixelbuff_alpha;
+		args[i].fpixelbuff_gi_by_bounce = fpixelbuff_gi_by_bounce;
+		args[i].fpixelbuff_final = fpixelbuff_final;
 		args[i].height = height;
 		args[i].voxellist = new voxel*[lastVoxelCount * 2];
 		args[i].facelist = new int[m->iface * 2];
@@ -545,88 +576,123 @@ int main(int argc, char* argv[])
 	}
 
 	printf("\nend tracing\n");
-	traceStartTime=time(NULL) - traceStartTime;
+	traceStartTime=time(nullptr) - traceStartTime;
 	printf("writing data\n");
+
 	pixel* pixelbuff;
 	pixelbuff = new pixel[width*height];
 
-	//nomal
 	for(int i=0;i<height;i++){
 		for(int j=0;j<width;j++){
-			int max = fpixelbuff_count[0][i * width + j];
-			if (max > 0)
+			int c = fpixelbuff_count[i * width + j];
+			if (c > 0)
 			{
-				pixelbuff[i * width + j].r = fpixelbuff_normal[i * width + j].r / max * 255;
-				pixelbuff[i * width + j].g = fpixelbuff_normal[i * width + j].g / max * 255;
-				pixelbuff[i * width + j].b = fpixelbuff_normal[i * width + j].b / max * 255;
-				pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
+				vec3 normal = fpixelbuff_normal[i * width + j] / scalar(c);
+				normal = glm::normalize(normal);
+				pixelbuff[i * width + j].r = to8bit((normal.x + 1.0f) / 2.0f);
+				pixelbuff[i * width + j].g = to8bit((normal.y + 1.0f) / 2.0f);
+				pixelbuff[i * width + j].b = to8bit((normal.z + 1.0f) / 2.0f);
 			}
+			pixelbuff[i * width + j].a = to8bit(scalar(c) / sampleCount);
 		}
 	}
 	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_normal.tga")).c_str());
 
-	for (int k = 0; k < bounce;k++)
-	{
-		char name_[255];
+	for(int i=0;i<height;i++){
+		for(int j=0;j<width;j++){
+			int c = fpixelbuff_count[i * width + j];
+			if (c > 0)
+			{
+				pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_albido[i * width + j].r / c));
+				pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_albido[i * width + j].g / c));
+				pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_albido[i * width + j].b / c));
+			}
+			pixelbuff[i * width + j].a = to8bit(scalar(c) / sampleCount);
+		}
+	}
+	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_albido.tga")).c_str());
 
-		//diff
-		for (int i = 0; i < height; i++){
-			for (int j = 0; j < width; j++){
-				int max = fpixelbuff_count[k][i * width + j];
-				if (max > 0)
-				{
-					pixelbuff[i * width + j].r = fpixelbuff_diff[k][i * width + j].r / max * 255;
-					pixelbuff[i * width + j].g = fpixelbuff_diff[k][i * width + j].g / max * 255;
-					pixelbuff[i * width + j].b = fpixelbuff_diff[k][i * width + j].b / max * 255;
-					pixelbuff[i * width + j].a = fpixelbuff_alpha[i * width + j] / max * 255;
-				}
+	for(int i=0;i<height;i++){
+		for(int j=0;j<width;j++){
+			int c = fpixelbuff_count[i * width + j];
+			if (c > 0)
+			{
+				pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_final[i * width + j].r / c));
+				pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_final[i * width + j].g / c));
+				pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_final[i * width + j].b / c));
+			}
+			pixelbuff[i * width + j].a = to8bit(scalar(c) / sampleCount);
+		}
+	}
+	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_final.tga")).c_str());
+
+	//gi normal
+	for (int i = 0; i < height; i++)
+	{
+		for (int j = 0; j < width; j++)
+		{
+			int c = fpixelbuff_count[i * width + j];
+			if (c > 0)
+			{
+				vec3 ginormal = fpixelbuff_gi_normal[i * width + j] / scalar(c);
+				ginormal = glm::normalize(ginormal);
+				fpixel gi = fpixelbuff_gi[i * width + j];
+				float alpha = (gi.r + gi.g + gi.b) / 3.0;
+				pixelbuff[i * width + j].r = to8bit((ginormal.x + 1.0f) / 2.0f);
+				pixelbuff[i * width + j].g = to8bit((ginormal.y + 1.0f) / 2.0f);
+				pixelbuff[i * width + j].b = to8bit((ginormal.z + 1.0f) / 2.0f);
+				pixelbuff[i * width + j].a = to8bit(alpha);
+			}
+			else
+			{
+				pixelbuff[i * width + j] = pixel();
 			}
 		}
-		std::string name = std::string("_diff%d.tga");
-		sprintf(name_, name.c_str(), k);
-		name = name_;
-		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
+	}
+	save2file(pixelbuff, width, height, (outfile_prefix +  std::string("_gi_normal.tga")).c_str());
+
+	//gi
+	for(int i=0;i<height;i++){
+		for(int j=0;j<width;j++){
+			int c = fpixelbuff_count[i * width + j];
+			if (c > 0)
+			{
+				pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_gi[i * width + j].r / c));
+				pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_gi[i * width + j].g / c));
+				pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_gi[i * width + j].b / c));
+			}
+			pixelbuff[i * width + j].a = to8bit(float(c) / sampleCount);
+		}
+	}
+	save2file(pixelbuff, width, height, (outfile_prefix + std::string("_gi.tga")).c_str());
+
+	for (int k = 0; k < bounce - 1;k++)
+	{
+		char name_[255];
 
 		//gi
 		for (int i = 0; i < height; i++){
 			for (int j = 0; j < width; j++){
-				int max = fpixelbuff_count[0][i * width + j];
-				if (max > 0)
+				int c = fpixelbuff_count[i * width + j];
+				if (c > 0)
 				{
-					pixelbuff[i * width + j].r = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
-					pixelbuff[i * width + j].g = clamp(fpixelbuff_gi[k][i * width + j].g / max) * 255;
-					pixelbuff[i * width + j].b = clamp(fpixelbuff_gi[k][i * width + j].b / max) * 255;
-					pixelbuff[i * width + j].a = clamp(fpixelbuff_alpha[i * width + j] / max) * 255;
+					pixelbuff[i * width + j].r = to8bit(gamma(fpixelbuff_gi_by_bounce[k][i * width + j].r / c));
+					pixelbuff[i * width + j].g = to8bit(gamma(fpixelbuff_gi_by_bounce[k][i * width + j].g / c));
+					pixelbuff[i * width + j].b = to8bit(gamma(fpixelbuff_gi_by_bounce[k][i * width + j].b / c));
 				}
+				pixelbuff[i * width + j].a = to8bit(float(c) / sampleCount);
 			}
 		}
-		name = std::string("_gi%d.tga");
-		sprintf(name_, name.c_str(), k);
-		name = name_;
-		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
-
-		//gi normal
-		for (int i = 0; i < height; i++){
-			for (int j = 0; j < width; j++){
-				int max = fpixelbuff_count[0][i * width + j];
-				if (max > 0)
-				{
-					vec3 ginormal = glm::normalize(fpixelbuff_gi_normal[k][i * width + j]);
-					pixelbuff[i * width + j].r = (ginormal.x + 1.0f) / 2.0f * 255;
-					pixelbuff[i * width + j].g = (ginormal.y + 1.0f) / 2.0f * 255;
-					pixelbuff[i * width + j].b = (ginormal.z + 1.0f) / 2.0f * 255;
-					pixelbuff[i * width + j].a = clamp(fpixelbuff_gi[k][i * width + j].r / max) * 255;
-				}
-			}
-		}
-		name = std::string("_gi_normal%d.tga");
-		sprintf(name_, name.c_str(), k);
+		std::string name("_gi_by_bounce%d.tga");
+		sprintf(name_, name.c_str(), k + 1);
 		name = name_;
 		save2file(pixelbuff, width, height, (outfile_prefix + name).c_str());
 	}
 
-	printf("\ntotal time is %d\n", (int)time(0)-startTime);
+	printf("\nDone\ntotal time is %d\n", int(time(nullptr)-startTime));
 	printf("trace time is %d\n",traceStartTime);
+	printf("[press any key]\n");
+	getchar();
 }
 
 intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount)

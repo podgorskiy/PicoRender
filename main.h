@@ -136,58 +136,11 @@ void preparemodel(model* m, vec3& boundMax, vec3& boundMin);
 intersection findintersection(model* m, vec3 v, vec3 p, int* facelist, int &facelistCount, voxel** voxellist, int &voxellistCount);
 
 
-#define SB_GET_LINE(a,b,c,p1,p2)	\
-	a = p1.y - p2.y; \
-	b = p2.x - p1.x; \
-	c = p1.x*p2.y - p2.x*p1.y;
-
-#define SB_GET_CLOTHEST_POINT(a,b,c,p,cp) \
-{\
-	float32 c1 = b*p.x - a*p.y; \
-	float32 det = a*a + b*b; \
-	cp.Set(-(a*c - b*c1) / det, -(a*c1 + b*c) / det); \
-}
-
-
-#define SB_POINT_IN_SEGMENT(p1,p2,c) \
-	(\
-	(((p2.x >= c.x) && (c.x >= p1.x)) || \
-	((p2.x <= c.x) && (c.x <= p1.x))) && \
-	(((p2.y >= c.y) && (c.y >= p1.y)) || \
-	((p2.y <= c.y) && (c.y <= p1.y)))  \
-	) \
-
-/* calc crossing point
-
-a1x+b1y+c1=0
-a2x+b2y+c2=0
-
--c1-b1y
-x = ---------
-a1
-a2       a2
-- ----c1 - ----b1y + b2y+c2 = 0
-a1       a1
-
-a2
----- c1  - c2
-a1
-y = -------------
-a2
-b2 - ---- b1
-a1
-
-a2c1 - a1c2
-y = -------------
-a1b2 - a2b1
-*/
-
-#define SB_GET_CROSSPOINT(a1,b1,c1,a2,b2,c2,l1p1,l1p2,l2p1,l2p2,cp,action) \
-	SB_GET_LINE(a1, b1, c1, l1p1, l1p2)\
-	SB_GET_LINE(a2, b2, c2, l2p1, l2p2)\
-{\
-	float tmp = a1*b2 - a2*b1; \
-if (tmp == 0.0f)\
-	action; \
-	cp.Set((b1*c2 - b2*c1) / tmp, (a2*c1 - a1*c2) / tmp); \
+//get line equation coefficients
+template<typename T>
+inline void GetLine(T& a, T& b, T& c, const vec2& p1, const vec2& p2)
+{
+	a = p1.y - p2.y;
+	b = p2.x - p1.x;
+	c = p1.x * p2.y - p2.x * p1.y;
 }

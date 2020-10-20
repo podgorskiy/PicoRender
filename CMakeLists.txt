@@ -17,7 +17,7 @@ if(MSVC)
     set(RELEASE_OPTIONS /MT /Ox /fp:fast /GL /GR-)
 else()
 	set(DEBUG_OPTIONS -g -Wall)
-	set(RELEASE_OPTIONS -g -Ofast -fno-rtti -fPIC -funsafe-math-optimizations -fno-strict-aliasing  -ffast-math -msse2 -msse3 -msse4)
+	set(RELEASE_OPTIONS -g -Ofast -fno-rtti -flto -fPIC -funsafe-math-optimizations -fno-strict-aliasing  -ffast-math -msse2 -msse3 -msse4)
 endif()
 
 add_compile_options(
@@ -46,5 +46,5 @@ add_executable(PostProcess PostProcess/PostProcess.cpp ConfigReader.cpp fileio.c
 if(MSVC)
 else()
 	target_link_libraries(PicoRender PRIVATE pthread spdlog::spdlog yaml-cpp dl)
-	target_link_options(PicoRender PRIVATE -static-libstdc++)
+	target_link_options(PicoRender PRIVATE -static-libstdc++ -flto)
 endif()
