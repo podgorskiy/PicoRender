@@ -7,6 +7,7 @@
 #include <vector>
 #include <time.h>
 #include <thread>
+#include <mutex>
 #include "rnd.h"
 #include <glm/gtx/norm.hpp>
 
@@ -70,6 +71,8 @@ struct exeArg
 	exeArg(){};
 	int* facelist;
 	voxel** voxellist;
+
+	std::mutex buffer_write;
 };
 
 
@@ -155,6 +158,7 @@ inline void Trace(vec3 pos, vec3 v, vec3 normal, int i, int j, exeArg* arg)
 		fpixel lightColor = light * color;
 		scalar magnitude = sqrt(lightColor.r + lightColor.g + lightColor.b) / 3.0;
 
+		std::lock_guard<std::mutex> g(arg->buffer_write);
 		arg->fpixelbuff_normal[i * width + j] += regular_normal;
 		arg->fpixelbuff_albido[i * width + j] += albido;
 
