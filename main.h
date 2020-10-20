@@ -110,6 +110,7 @@ struct fpixel {
 	void Set (const float& xr, const float& xg, const float& xb){r=xr;g=xg;b=xb;}
 };
 inline fpixel operator * (const float s, const fpixel& a){ return fpixel(s * a.r, s * a.g, s * a.b); }
+inline fpixel operator * (const fpixel& a, const float s){ return fpixel(s * a.r, s * a.g, s * a.b); }
 inline fpixel operator * (const fpixel&a, const fpixel& b){ return fpixel(b.r * a.r, b.g * a.g, b.b * a.b); }
 
 struct _2DVec {
