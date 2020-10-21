@@ -14,15 +14,16 @@ rtDeclareVariable(RayPayload, ray_payload, rtPayload, );
 
 rtDeclareVariable(rtObject, world, , );
 
+rtBuffer<float4, 2> pixelBuffer;
 
-rtBuffer<float3, 2> fb;
-rtDeclareVariable(int, numSamples, , );
-rtDeclareVariable(float3, camera_origin, , );
-rtDeclareVariable(float3, camera_lookat, , );
-rtDeclareVariable(float3, camera_up, , );
-rtDeclareVariable(float,  camera_vfov, , );
-rtDeclareVariable(float,  camera_aperture, , );
-rtDeclareVariable(float,  camera_focusDist, , );
+rtDeclareVariable(int,      numSamples, , );
+rtDeclareVariable(int,      bounces, , );
+rtDeclareVariable(float3,   camera_origin, , );
+rtDeclareVariable(float3,   camera_lookat, , );
+rtDeclareVariable(float3,   camera_up, , );
+rtDeclareVariable(float,    camera_vfov, , );
+rtDeclareVariable(float,    camera_aperture, , );
+rtDeclareVariable(float,    camera_focusDist, , );
 
 
 
@@ -35,25 +36,29 @@ inline __device__ vec3 missColor(const optix::Ray &ray)
 }
 
 
-inline __device__ vec3 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
+inline __device__ vec4 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
 {
     RayPayload ray_payload;
-    vec3 attenuation = vec3(1.);
 
-    for (int k = 0; k < 5; ++k)
+	vec3 light(0.0);
+	vec3 color(1.0);
+    int k = 0;
+    for (; k < bounces; ++k)
     {
         ray_payload.rs = &rs;
         rtTrace(world, ray, ray_payload);
         if (ray_payload.scatterEvent == RayPayload::rayDidntHitAnything)
         {
-            return attenuation * missColor(ray);
+            light = missColor(ray);
+            break;
         }
-        else if (length(attenuation) < 0.01 || ray_payload.scatterEvent == RayPayload::rayGotCancelled)
+        else if (length(color) < 0.01 || ray_payload.scatterEvent == RayPayload::rayGotCancelled)
         {
-            return vec3(0.);
+            break;
         }
-        else { // ray is still alive, and got properly bounced
-            attenuation *= ray_payload.attenuation;
+        else
+        {
+            color *= ray_payload.attenuation;
             ray = optix::make_Ray(
                     /* origin   : */ to_cuda(ray_payload.origin),
                     /* direction: */ to_cuda(ray_payload.direction),
@@ -62,8 +67,14 @@ inline __device__ vec3 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
                     /* tmax     : */ RT_DEFAULT_MAX);
         }
     }
-    // recursion did not terminate - cancel it
-    return vec3(0.);
+    if (k != 0)
+    {
+        return vec4(light * color, 1.);
+    }
+    else
+    {
+        return vec4(0.);
+    }
 }
 
 
@@ -71,7 +82,7 @@ RT_PROGRAM void Render()
 {
     uint32_t pixel_index = pixelID.y * launchDim.x + pixelID.x;
 
-    vec3 col(0.f, 0.f, 0.f);
+    vec4 col(0.f, 0.f, 0.f, 0.f);
     rnd::RandomState rs(pixel_index);
 
     float aspect = float(launchDim.x) / float(launchDim.y);
@@ -95,7 +106,7 @@ RT_PROGRAM void Render()
     }
     col = col / scal(numSamples);
 
-    fb[pixelID] = to_cuda(pow(col, vec3(1.0 / 2.2)));
+    pixelBuffer[pixelID] = to_cuda(vec4(pow(vec3(col), vec3(1.0 / 2.2)), col.a));
 }
 
 RT_PROGRAM void Miss()

@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <time.h>
+#include <spdlog/spdlog.h>
 
 #include "main.h"
 #include "ConfigReader.h"
@@ -17,8 +18,8 @@ const char* Field::GetType()
 
 void Field::wrongType()
 {
-	printf("wrong type\n");
-	printf("The type is \"%s\"\n",this->GetType());
+	spdlog::info("wrong type");
+	spdlog::info("The type is \"{}\"", this->GetType());
 	assert(false);
 }
 
@@ -100,11 +101,11 @@ void Config::LoadConfig(const char* filepath)
 {
 	config->clear();
 	FILE * configFile;
-	printf("Loading configuration from %s file\n",filepath);
+	spdlog::info("Loading configuration from {} file", filepath);
 	configFile = fopen(filepath,"r");
 	if (!configFile)
 	{
-		printf ("Missing %s file\n",filepath);
+		spdlog::info("Missing {} file", filepath);
 	}
 	int lineNumber=1;
 	int res;
