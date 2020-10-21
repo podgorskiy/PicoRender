@@ -83,7 +83,7 @@ RT_PROGRAM void Render()
     uint32_t pixel_index = pixelID.y * launchDim.x + pixelID.x;
 
     vec4 col = make_float4(0.f, 0.f, 0.f, 0.f);
-    rnd::RandomState rs(pixel_index);
+    rnd::RandomState rs(pixel_index, pixel_index*pixel_index);
 
     float aspect = float(launchDim.x) / float(launchDim.y);
 

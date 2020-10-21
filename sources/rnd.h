@@ -17,7 +17,7 @@ namespace rnd
 		    }
 		}
 
-		explicit CUDA RandomState(uint32_t seed): seedB(seed)
+		explicit CUDA RandomState(uint32_t seeda, uint32_t seedb): seedA(seeda), seedB(seedb)
 		{
 		    for (int i=0;i<10;++i)
 		    {

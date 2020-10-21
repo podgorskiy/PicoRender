@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
 
     std::vector<optix::Material> optix_materials;
     auto mat = matFactory(Lambertian);
-    mat["albedo"]->setFloat(make_float3(1.0, 0.2, 0.2));
+    mat["albedo"]->setFloat(make_float3(0.8, 0.2, 0.2));
 
     optix_materials.push_back(mat);
 
