@@ -6,10 +6,10 @@ namespace rnd
 	class RandomState
 	{
 	public:
-		RandomState()
+		CUDA RandomState()
 		{}
 
-		explicit RandomState(uint64_t seed): seedA(seed >> 32U), seedB(seed)
+		explicit CUDA RandomState(uint64_t seed): seedA(seed >> 32U), seedB(seed)
 		{
 		    for (int i=0;i<10;++i)
 		    {
@@ -17,25 +17,33 @@ namespace rnd
 		    }
 		}
 
-		uint32_t irand()
+		explicit CUDA RandomState(uint32_t seed): seedB(seed)
+		{
+		    for (int i=0;i<10;++i)
+		    {
+		    	gen();
+		    }
+		}
+
+		CUDA uint32_t irand()
 		{
 			return uint32_t(gen());
 		}
 
-		float rand1()
+		CUDA float rand1()
 		{
 			uint32_t x = (gen()>>9U) | 0x3f800000U;
 			return reinterpret_cast<const float&>(x) - 1.0;
 		}
 
-		vec2 rand2()
+		CUDA vec2 rand2()
 		{
 			uint32_t a = (gen()>>9U) | 0x3f800000U;
 			uint32_t b = (gen()>>9U) | 0x3f800000U;
 			return vec2(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b)) - 1.0;
 		}
 
-		vec3 rand3()
+		CUDA vec3 rand3()
 		{
 			uint32_t a = (gen()>>9U) | 0x3f800000U;
 			uint32_t b = (gen()>>9U) | 0x3f800000U;
@@ -43,7 +51,7 @@ namespace rnd
 			return vec3(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b), reinterpret_cast<const float&>(c)) - 1.0;
 		}
 
-		uint32_t gen()
+		CUDA uint32_t gen()
 		{
 			uint32_t x = seedA;
 			uint32_t y = seedB;
@@ -54,7 +62,7 @@ namespace rnd
 			return n * (n * n * 15731U + 789221U) + 1376312589U;
 		}
 
-		float rand(float a, float b)
+		CUDA float rand(float a, float b)
 		{
 			return rand1() * (b - a) + a;
 		}

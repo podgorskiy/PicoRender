@@ -8,7 +8,27 @@ project(PicoRender)
 
 option (USE_MSVC_RUNTIME_LIBRARY_DLL OFF)
 
-set(CMAKE_CXX_STANDARD 17)
+set ( CMAKE_CXX_STANDARD 11 )
+
+# set to match your path
+set(OptiX_INSTALL_DIR "/usr/local/nvidia/NVIDIA-OptiX-SDK-6.5.0-linux64" CACHE PATH "Path to OptiX installed location.")
+
+set(CMAKE_MODULE_PATH
+  "${OptiX_INSTALL_DIR}/SDK/CMake"
+  ${CMAKE_MODULE_PATH}
+  )
+
+message(STATUS "OptiX_INSTALL_DIR: ${OptiX_INSTALL_DIR}")
+message(STATUS "PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}")
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}")
+
+include(CMake/configure_optix.cmake)
+
+include_directories(${OptiX_INCLUDE})
+message(STATUS "OptiX includes: ${OptiX_INCLUDE}")
+
+add_definitions(-D__CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__=1)
 
 
 if(MSVC)
@@ -37,14 +57,18 @@ configure_file(wood.tga wood.tga COPYONLY)
 configure_file(config.txt config.txt  COPYONLY)
 configure_file(config_post.txt config_post.txt  COPYONLY)
 
-file(GLOB SOURCES *.cpp  *.c *.h)
+file(GLOB SOURCES sources/*.cpp  sources/*.c sources/*.h)
 
-add_executable(PicoRender ${SOURCES})
+cuda_compile_and_embed(
+  render_program sources/render.cu
+)
 
-add_executable(PostProcess PostProcess/PostProcess.cpp ConfigReader.cpp fileio.cpp)
+add_executable(PicoRender ${SOURCES} ${render_program})
+
+target_link_libraries(PicoRender PRIVATE spdlog::spdlog yaml-cpp ${optix_LIBRARY})
 
 if(MSVC)
 else()
-	target_link_libraries(PicoRender PRIVATE pthread spdlog::spdlog yaml-cpp dl)
+	target_link_libraries(PicoRender PRIVATE pthread  dl)
 	target_link_options(PicoRender PRIVATE -static-libstdc++ -flto)
 endif()

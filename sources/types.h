@@ -2,14 +2,27 @@
 
 #include <glm/glm.hpp>
 
+#if defined(__CUDACC__)
+#define CUDA_HOST __host__
+#define CUDA_DEVICE __device__
+#define CUDA __host__ __device__
+#else
+#define CUDA_HOST
+#define CUDA_DEVICE
+#define CUDA
+#endif
+
 
 #define PI_F 3.141592654f
 
 #define PI_D 3.14159265358979323846264338327950288
 
 
+typedef glm::dvec4 vec4;
 typedef glm::dvec3 vec3;
 typedef glm::dvec2 vec2;
+typedef glm::dmat2 mat2;
+typedef glm::dmat3 mat3;
 typedef glm::dvec3::value_type scalar;
 
 //typedef glm::vec<4, uint8_t> pixel;
@@ -41,3 +54,19 @@ struct fpixel {
 };
 inline fpixel operator * (const float s, const fpixel& a){ return fpixel(s * a.r, s * a.g, s * a.b); }
 inline fpixel operator * (const fpixel&a, const fpixel& b){ return fpixel(b.r * a.r, b.g * a.g, b.b * a.b); }
+
+
+#if defined(__CUDACC__)
+float3 __device__ to_cuda(vec3 v)
+{
+    return make_float3(v.x, v.y, v.z);
+}
+float2 __device__ to_cuda(vec2 v)
+{
+    return make_float2(v.x, v.y);
+}
+float4 __device__ to_cuda(vec4 v)
+{
+    return make_float4(v.x, v.y, v.z, v.w);
+}
+#endif
