@@ -24,13 +24,8 @@ add_compile_options(
         "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
         "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>")
 
-add_subdirectory (libs/yaml-cpp)
-add_subdirectory (libs/spdlog)
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/stb)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/glm)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/yaml-cpp/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/backward-cpp)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/stb)
 
 configure_file(teapot.obj teapot.obj COPYONLY)
 configure_file(wood.tga wood.tga COPYONLY)

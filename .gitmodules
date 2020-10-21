@@ -4,12 +4,3 @@
 [submodule "libs/stb"]
 	path = libs/stb
 	url = https://github.com/nothings/stb.git
-[submodule "libs/yaml-cpp"]
-	path = libs/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp.git
-[submodule "libs/backward-cpp"]
-	path = libs/backward-cpp
-	url = https://github.com/bombela/backward-cpp.git
-[submodule "libs/spdlog"]
-	path = libs/spdlog
-	url = https://github.com/gabime/spdlog.git
