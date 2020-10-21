@@ -1,19 +1,24 @@
 #pragma once
+#include <optix.h>
+#include <internal/optix_datatypes.h>
 #include "types.h"
 #include "sampling.h"
-#include "ray.h"
+#include "ray_payload.h"
 
 class Camera
 {
 public:
+	CUDA Camera()
+    {}
+
 	CUDA Camera(vec3 lookfrom, vec3 lookat, vec3 vup, float vfov, float aspect, float aperture, float focusDist)
 	{
 	    m_apertureRadius = aperture;
 	    m_focusDist = focusDist;
 
-	    scalar theta = vfov * PI_D / 180.0;
-	    scalar halfHeight = tan(theta / 2.0);
-	    scalar halfWidth = aspect * halfHeight;
+	    scal theta = vfov * PI_D / 180.0;
+	    scal halfHeight = tan(theta / 2.0);
+	    scal halfWidth = aspect * halfHeight;
 
 	    m_origin = lookfrom;
 
@@ -25,28 +30,30 @@ public:
 	    m_k_inv = mat3(vec3(halfWidth, 0, 0), vec3(0, halfHeight, 0), vec3(0.0, 0.0, -1.));
 	}
 
-	PerRayData generateRay(vec2 uv)
+	CUDA optix::Ray generateRay(vec2 uv, rnd::RandomState& rs)
 	{
-	    //vec3 rd = m_apertureRadius * random_in_unit_disk(uv, j);
+	    vec3 rd = m_apertureRadius * vec3(random_in_unit_disk(&rs), 0.0);
 
-	    PerRayData ray;
-//	    vec2 pixel = 1.0/iResolution.xy;
-//		uv += pixel * (hash22(uv) - 0.5);
-//	    uv = 2.0 * uv - 1.0;
-//
-//	    ray.origin = m_origin + m_cam * rd;
-//
-//	    vec3 dir = m_k_inv * vec3(uv, 1.0);
-//	    dir -= rd / m_focusDist;
-//
-//	    ray.direction = normalize(m_cam * dir);
+	    uv = scal(2.0) * uv - scal(1.0);
 
-	    return ray;
-	}
+	    vec3 origin = m_origin + m_cam * rd;
+
+	    vec3 direction = m_k_inv * vec3(uv, 1.0);
+	    direction -= rd / m_focusDist;
+
+	    direction = normalize(m_cam * direction);
+
+        return optix::make_Ray(
+                /* origin   : */ to_cuda(origin),
+                /* direction: */ to_cuda(direction),
+                /* ray type : */ 0,
+                /* tmin     : */ 1e-6f,
+                /* tmax     : */ RT_DEFAULT_MAX);
+    }
 private:
-    float m_apertureRadius;
+    scal m_apertureRadius;
     vec3 m_origin;
     mat3 m_cam;
     mat3 m_k_inv;
-    float m_focusDist;
+    scal m_focusDist;
 };

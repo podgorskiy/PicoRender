@@ -36,11 +36,16 @@ namespace rnd
 			return reinterpret_cast<const float&>(x) - 1.0;
 		}
 
+		CUDA float rand()
+		{
+			return rand1();
+		}
+
 		CUDA vec2 rand2()
 		{
 			uint32_t a = (gen()>>9U) | 0x3f800000U;
 			uint32_t b = (gen()>>9U) | 0x3f800000U;
-			return vec2(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b)) - 1.0;
+			return vec2(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b)) - scal(1.0);
 		}
 
 		CUDA vec3 rand3()
@@ -48,7 +53,7 @@ namespace rnd
 			uint32_t a = (gen()>>9U) | 0x3f800000U;
 			uint32_t b = (gen()>>9U) | 0x3f800000U;
 			uint32_t c = (gen()>>9U) | 0x3f800000U;
-			return vec3(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b), reinterpret_cast<const float&>(c)) - 1.0;
+			return vec3(reinterpret_cast<const float&>(a), reinterpret_cast<const float&>(b), reinterpret_cast<const float&>(c)) - scal(1.0);
 		}
 
 		CUDA uint32_t gen()

@@ -1,5 +1,6 @@
 #pragma once
-
+// #include <cuda_runtime.h>
+#include <vector_types.h>
 #include <glm/glm.hpp>
 
 #if defined(__CUDACC__)
@@ -18,12 +19,16 @@
 #define PI_D 3.14159265358979323846264338327950288
 
 
-typedef glm::dvec4 vec4;
-typedef glm::dvec3 vec3;
-typedef glm::dvec2 vec2;
-typedef glm::dmat2 mat2;
-typedef glm::dmat3 mat3;
-typedef glm::dvec3::value_type scalar;
+typedef glm::vec4 vec4;
+typedef glm::vec3 vec3;
+typedef glm::vec2 vec2;
+typedef glm::mat2 mat2;
+typedef glm::mat3 mat3;
+typedef glm::vec3::value_type scal;
+
+using  glm::dot;
+using  glm::length;
+using  glm::cross;
 
 //typedef glm::vec<4, uint8_t> pixel;
 //typedef glm::vec<3, uint8_t> pixel24;
@@ -56,17 +61,32 @@ inline fpixel operator * (const float s, const fpixel& a){ return fpixel(s * a.r
 inline fpixel operator * (const fpixel&a, const fpixel& b){ return fpixel(b.r * a.r, b.g * a.g, b.b * a.b); }
 
 
-#if defined(__CUDACC__)
-float3 __device__ to_cuda(vec3 v)
+inline float3 CUDA to_cuda(vec3 v)
 {
-    return make_float3(v.x, v.y, v.z);
+    float3 t; t.x = v.x; t.y = v.y; t.z = v.z; return t;
 }
-float2 __device__ to_cuda(vec2 v)
+
+inline float2 CUDA to_cuda(vec2 v)
 {
-    return make_float2(v.x, v.y);
+    float2 t; t.x = v.x; t.y = v.y; return t;
 }
-float4 __device__ to_cuda(vec4 v)
+
+inline float4 CUDA to_cuda(vec4 v)
 {
-    return make_float4(v.x, v.y, v.z, v.w);
+    float4 t; t.x = v.x; t.y = v.y; t.z = v.z; t.w = v.w; return t;
 }
-#endif
+
+inline vec3 CUDA to_glm(float3 v)
+{
+    return vec3(v.x, v.y, v.z);
+}
+
+inline vec2 CUDA to_glm(float2 v)
+{
+    return vec2(v.x, v.y);
+}
+
+inline vec4 CUDA to_glm(float4 v)
+{
+    return vec4(v.x, v.y, v.z, v.w);
+}

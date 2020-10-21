@@ -57,13 +57,19 @@ configure_file(wood.tga wood.tga COPYONLY)
 configure_file(config.txt config.txt  COPYONLY)
 configure_file(config_post.txt config_post.txt  COPYONLY)
 
-file(GLOB SOURCES sources/*.cpp  sources/*.c sources/*.h)
+file(GLOB_RECURSE SOURCES sources/*.cpp  sources/*.c sources/*.h)
 
 cuda_compile_and_embed(
   render_program sources/render.cu
 )
+cuda_compile_and_embed(
+  materials_program sources/Materials.cu
+)
+cuda_compile_and_embed(
+  sphere_program sources/sphere.cu
+)
 
-add_executable(PicoRender ${SOURCES} ${render_program})
+add_executable(PicoRender ${SOURCES} ${render_program} ${materials_program} ${sphere_program})
 
 target_link_libraries(PicoRender PRIVATE spdlog::spdlog yaml-cpp ${optix_LIBRARY})
 
