@@ -2,7 +2,6 @@
 #include <time.h>
 #include "rnd.h"
 #include "sampling.h"
-#include "Camera.h"
 #include "MaterialFactory.h"
 #include <chrono>
 
@@ -11,7 +10,6 @@
 #include <tiny_obj_loader.h>
 
 #include "main.h"
-#include "aabb.h"
 #include "ConfigReader.h"
 
 #include <stb_image_write.h>
@@ -28,7 +26,7 @@ void SetMaterial(optix::GeometryInstance gi, optix::Material mat, vec3 albedo)
 {
     gi->setMaterialCount(1);
     gi->setMaterial(/*ray type:*/0, mat);
-    gi["albedo"]->setFloat(to_cuda(albedo));
+    gi["albedo"]->setFloat(albedo);
 }
 
 optix::GeometryInstance createSphere(optix::Context& context, const vec3 &center, const float radius)
@@ -47,40 +45,14 @@ optix::GeometryInstance createSphere(optix::Context& context, const vec3 &center
 optix::GeometryGroup createScene(optix::Context& context, const MatFactory& matFactory)
 {
     rnd::RandomState rs;
-    // first, create all geometry instances (GIs), and, for now,
-    // store them in a std::vector. For ease of reference, I'll
-    // stick wit the 'd_list' and 'd_world' names used in the
-    // reference C++ and CUDA codes.
     std::vector<optix::GeometryInstance> d_list;
 
     auto lambert = matFactory(Lambertian);
 
-    auto sphere = createSphere(context, vec3(0.f, -1000.0f, -1.f), 1000.f);
-    SetMaterial(sphere, lambert, vec3(0.5f, 0.5f, 0.5f));
+    auto sphere = createSphere(context, make_float3(0.f, -1000.0f, -1.f), 1000.f);
+    SetMaterial(sphere, lambert, make_float3(0.5f, 0.5f, 0.5f));
 
     d_list.push_back(sphere);
-//
-//    for (int a = -11; a < 11; a++) {
-//        for (int b = -11; b < 11; b++) {
-//            float choose_mat = rs.rand();
-//            vec3 center(a + rs.rand(), 0.2f, b + rs.rand());
-//            if (choose_mat < 0.8f) {
-//                auto sphere = createSphere(context, center, 0.2f);
-//                SetMaterial(sphere, lambert, vec3(rs.rand() * rs.rand(), rs.rand() * rs.rand(), rs.rand() * rs.rand()));
-//                d_list.push_back(sphere);
-//            }
-////            else if (choose_mat < 0.95f) {
-////                d_list.push_back(createSphere(center, 0.2f,
-////                                              Metal(vec3f(0.5f * (1.0f + rs.rand()), 0.5f * (1.0f + rs.rand()),
-////                                                          0.5f * (1.0f + rs.rand())), 0.5f * rs.rand())));
-////            } else {
-////                d_list.push_back(createSphere(center, 0.2f, Dielectric(1.5f)));
-////            }
-//        }
-//    }
-    //d_list.push_back(createSphere(vec3(0.f, 1.f, 0.f), 1.f, Dielectric(1.5f)));
-    //d_list.push_back(createSphere(context, vec3(-4.f, 1.f, 0.f), 1.f, Lambertian(vec3(0.4f, 0.2f, 0.1f), lmat)));
-    //d_list.push_back(createSphere(vec3(4.f, 1.f, 0.f), 1.f, Metal(vec3(0.7f, 0.6f, 0.5f), 0.0f)));
 
     // now, create the optix world that contains all these GIs
     optix::GeometryGroup d_world = context->createGeometryGroup();
@@ -123,7 +95,7 @@ int main(int argc, char* argv[])
 
     std::vector<optix::Material> optix_materials;
     auto mat = matFactory(Lambertian);
-    mat["albedo"]->setFloat(to_cuda(vec3(1.0, 0.2, 0.2)));
+    mat["albedo"]->setFloat(make_float3(1.0, 0.2, 0.2));
 
     optix_materials.push_back(mat);
 
@@ -175,12 +147,6 @@ int main(int argc, char* argv[])
 
         tri_indices->unmap();
         mat_indices->unmap();
-//        glm::aabb3 bbox;
-//        const auto& v = obj.GetAttrib().vertices;
-//        for (int i = 0;  i < shape.mesh.indices.size(); ++i)
-//        {
-//            bbox |= glm::vec3(v[3 * i + 0], v[3 * i + 1], v[3 * i + 2]);
-//        }
 
         optix::Geometry geometry = ctx->createGeometry();
         geometry["vertex_buffer"]->setBuffer(positions);
@@ -222,9 +188,9 @@ int main(int argc, char* argv[])
     ctx["camera_origin"]->setFloat(make_float3(0., 50., -100.));
     ctx["camera_lookat"]->setFloat(make_float3(0., 0., 0.));
     ctx["camera_up"]->setFloat(make_float3(0., 1., 0.));
-    ctx["camera_vfov"]->setFloat(40.);
-    ctx["camera_aperture"]->setFloat(0.2);
-    ctx["camera_focusDist"]->setFloat(length(vec3(0.0, 50.0, 100.0)));
+    ctx["camera_vfov"]->setFloat(config->GetField("camera_vfov")->GetFloat());
+    ctx["camera_aperture"]->setFloat(config->GetField("camera_aperture")->GetFloat());
+    ctx["camera_focusDist"]->setFloat(length(make_float3(0.0, 50.0, 100.0)));
 
     int numSamples = config->GetField("sampleCount")->GetInt();
     ctx["numSamples"]->setInt(numSamples);

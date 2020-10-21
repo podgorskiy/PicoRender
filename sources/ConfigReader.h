@@ -42,20 +42,12 @@ public:
 	float val;
 };
 
-class FieldPixel: public Field
+class Field2DVec: public Field
 {
 public:
-	FieldPixel(pixel val);
-	virtual const pixel& GetPixel();
-	pixel val;
-};
-
-class FieldFPixel: public Field
-{
-public:
-	FieldFPixel(fpixel val);
-	virtual const fpixel& GetFPixel();
-	fpixel val;
+	Field2DVec(vec2 val);
+	virtual const vec2& Get2DVec();
+	vec2 val;
 };
 
 class Field3DVec: public Field
@@ -64,6 +56,15 @@ public:
 	Field3DVec(vec3 val);
 	virtual const vec3& Get3DVec();
 	vec3 val;
+};
+
+
+class Field4DVec: public Field
+{
+public:
+	Field4DVec(vec4 val);
+	virtual const vec4& Get4DVec();
+	vec4 val;
 };
 
 class FieldStr: public Field

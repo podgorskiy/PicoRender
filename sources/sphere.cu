@@ -29,9 +29,9 @@ rtDeclareVariable(RayPayload, ray_payload, rtPayload, );
 // the reference code used.
 RT_PROGRAM void hit_sphere(int pid)
 {
-  const vec3 oc = to_glm(ray.origin - center);
-  const scal  a = dot(to_glm(ray.direction), to_glm(ray.direction));
-  const scal  b = dot(oc, to_glm(ray.direction));
+  const vec3 oc = ray.origin - center;
+  const scal  a = dot(ray.direction, ray.direction);
+  const scal  b = dot(oc, ray.direction);
   const scal  c = dot(oc, oc) - radius * radius;
   const scal  discriminant = b * b - a * c;
 

@@ -63,14 +63,14 @@ float FieldFloat::GetFloat()
 	return val;
 }
 
-FieldPixel::FieldPixel(pixel val):val(val){};
-const pixel& FieldPixel::GetPixel()
+Field2DVec::Field2DVec(vec2 val):val(val){}
+const vec2& Field2DVec::Get2DVec()
 {
 	return val;
 }
 
-FieldFPixel::FieldFPixel(fpixel val):val(val){}
-const fpixel& FieldFPixel::GetFPixel()
+Field4DVec::Field4DVec(vec4 val):val(val){}
+const vec4& Field4DVec::Get4DVec()
 {
 	return val;
 }
@@ -129,13 +129,13 @@ void Config::LoadConfig(const char* filepath)
 			(*config)[std::string(s_name)] = new FieldFloat(atof(s1));
 		}
 		if (strcmp(s_type,"3dvec")==0){
-			(*config)[std::string(s_name)] = new Field3DVec(vec3(atof(s1),atof(s2),atof(s3)));
+			(*config)[std::string(s_name)] = new Field3DVec(make_float3(atof(s1),atof(s2),atof(s3)));
 		}
-		if (strcmp(s_type,"fpixel")==0){
-			(*config)[std::string(s_name)] = new FieldFPixel(fpixel(atof(s1),atof(s2),atof(s3)));
+		if (strcmp(s_type,"2dvec")==0){
+			(*config)[std::string(s_name)] = new Field2DVec(make_float2(atof(s1),atof(s2)));
 		}
-		if (strcmp(s_type,"pixel")==0){
-			(*config)[std::string(s_name)] = new FieldPixel(pixel(atoi(s1),atoi(s2),atoi(s3),atoi(s4)));
+		if (strcmp(s_type,"4dvec")==0){
+			(*config)[std::string(s_name)] = new Field4DVec(make_float4(atof(s1),atof(s2),atof(s3),atof(s4)));
 		}
 		if (strcmp(s_type,"str")==0){
 			(*config)[std::string(s_name)] = new FieldStr(std::string(s1).c_str());
