@@ -3,7 +3,7 @@
 #include "rnd.h"
 
 
-inline CUDA vec3 lambert_no_tangent(vec3 normal, rnd::RandomState* rs)
+inline CUDA vec3 __lambert_no_tangent(vec3 normal, rnd::RandomState* rs)
 {
     vec2 uv = rs->rand2();
     scal theta = 2.0f * PI_D * uv.x;
@@ -36,4 +36,26 @@ inline CUDA vec3 random_in_unit_sphere(rnd::RandomState* rs)
 	vec3 p = random_on_surface_of_unit_sphere(rs);
     scal r = pow(rs->rand1(), 1.0f / 3.0f);
     return p * r;
+}
+
+inline CUDA vec3 random_cosine_direction(rnd::RandomState* rs)
+{
+    vec2 uv = rs->rand2();
+    auto z = sqrt(1-uv.y);
+
+    auto phi = 2.0 * PI_F * uv.x;
+    auto x = cos(phi)*sqrt(uv.y);
+    auto y = sin(phi)*sqrt(uv.y);
+
+    return make_float3(x, y, z);
+}
+
+inline CUDA vec3 lambert_no_tangent(vec3 normal, rnd::RandomState* rs)
+{
+    vec3 local = random_cosine_direction(rs);
+    vec3 w = normal;
+    vec3 a = (fabs(w.x) > 0.9) ? make_float3(0,1,0) : make_float3(1,0,0);
+    vec3 v = normalize(cross(w, a));
+    vec3 u = cross(w, v);
+    return local.x * u + local.y * v + local.z * w;
 }
