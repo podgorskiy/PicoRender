@@ -13,6 +13,10 @@ rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
 rtDeclareVariable(float3, hit_rec_normal, attribute hit_rec_normal, );
 rtDeclareVariable(float3, hit_rec_p, attribute hit_rec_p, );
 
+rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, );
+rtDeclareVariable(float3, shading_normal,   attribute shading_normal, );
+rtDeclareVariable(float3, hit_point,        attribute hit_point, );
+
 /*! the per ray data we operate on */
 rtDeclareVariable(RayPayload, ray_payload, rtPayload, );
 
@@ -36,16 +40,18 @@ RT_PROGRAM void hit_sphere(int pid)
   float temp = (-b - sqrtf(discriminant)) / a;
   if (temp < ray.tmax && temp > ray.tmin) {
     if (rtPotentialIntersection(temp)) {
-      hit_rec_p = ray.origin + temp * ray.direction;
-      hit_rec_normal = (hit_rec_p - center) / radius;
+      hit_point = ray.origin + temp * ray.direction;
+      geometric_normal = (hit_point - center) / radius;
+      shading_normal = geometric_normal;
       rtReportIntersection(0);
     }
   }
   temp = (-b + sqrtf(discriminant)) / a;
   if (temp < ray.tmax && temp > ray.tmin) {
     if (rtPotentialIntersection(temp)) {
-      hit_rec_p = ray.origin + temp * ray.direction;
-      hit_rec_normal = (hit_rec_p - center) / radius;
+      hit_point = ray.origin + temp * ray.direction;
+      geometric_normal = (hit_point - center) / radius;
+      shading_normal = geometric_normal;
       rtReportIntersection(0);
     }
   }

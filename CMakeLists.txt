@@ -46,6 +46,7 @@ add_compile_options(
 
 add_subdirectory (libs/yaml-cpp)
 add_subdirectory (libs/spdlog)
+add_subdirectory (libs/tinyobjloader)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/stb)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/glm)
@@ -69,9 +70,13 @@ cuda_compile_and_embed(
   sphere_program sources/sphere.cu
 )
 
-add_executable(PicoRender ${SOURCES} ${render_program} ${materials_program} ${sphere_program})
+cuda_compile_and_embed(
+  mesh_program sources/Mesh.cu
+)
 
-target_link_libraries(PicoRender PRIVATE spdlog::spdlog yaml-cpp ${optix_LIBRARY})
+add_executable(PicoRender ${SOURCES} ${render_program} ${materials_program} ${sphere_program} ${mesh_program})
+
+target_link_libraries(PicoRender PRIVATE spdlog::spdlog yaml-cpp tinyobjloader ${optix_LIBRARY})
 
 if(MSVC)
 else()

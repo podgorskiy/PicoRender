@@ -3,31 +3,31 @@
 #include "rnd.h"
 #include "sampling.h"
 #include "Camera.h"
+#include "MaterialFactory.h"
 #include <chrono>
 
 #include <optix.h>
 #include <optixu/optixpp.h>
+#include <tiny_obj_loader.h>
 
 #include "main.h"
+#include "aabb.h"
 #include "ConfigReader.h"
 
 #include <stb_image_write.h>
 
 extern "C" const char render_program[];
 extern "C" const char sphere_program[];
-extern "C" const char materials_program[];
+extern "C" const char mesh_program[];
 
 
 optix::Program sphereBBoxProgram;
 optix::Program sphereIntersectProgram;
-optix::Program lambertianProgram;
 
-optix::Material lmat;
-
-void SetMaterial(optix::GeometryInstance gi, vec3 albedo)
+void SetMaterial(optix::GeometryInstance gi, optix::Material mat, vec3 albedo)
 {
     gi->setMaterialCount(1);
-    gi->setMaterial(/*ray type:*/0, lmat);
+    gi->setMaterial(/*ray type:*/0, mat);
     gi["albedo"]->setFloat(to_cuda(albedo));
 }
 
@@ -44,7 +44,7 @@ optix::GeometryInstance createSphere(optix::Context& context, const vec3 &center
     return gi;
 }
 
-optix::GeometryGroup createScene(optix::Context& context)
+optix::GeometryGroup createScene(optix::Context& context, const MatFactory& matFactory)
 {
     rnd::RandomState rs;
     // first, create all geometry instances (GIs), and, for now,
@@ -53,28 +53,31 @@ optix::GeometryGroup createScene(optix::Context& context)
     // reference C++ and CUDA codes.
     std::vector<optix::GeometryInstance> d_list;
 
-    auto sphere = createSphere(context, vec3(0.f, -1000.0f, -1.f), 1000.f);
-    SetMaterial(sphere, vec3(0.5f, 0.5f, 0.5f));
-    d_list.push_back(sphere);
+    auto lambert = matFactory(Lambertian);
 
-    for (int a = -11; a < 11; a++) {
-        for (int b = -11; b < 11; b++) {
-            float choose_mat = rs.rand();
-            vec3 center(a + rs.rand(), 0.2f, b + rs.rand());
-            if (choose_mat < 0.8f) {
-                auto sphere = createSphere(context, center, 0.2f);
-                SetMaterial(sphere, vec3(rs.rand() * rs.rand(), rs.rand() * rs.rand(), rs.rand() * rs.rand()));
-                d_list.push_back(sphere);
-            }
-//            else if (choose_mat < 0.95f) {
-//                d_list.push_back(createSphere(center, 0.2f,
-//                                              Metal(vec3f(0.5f * (1.0f + rs.rand()), 0.5f * (1.0f + rs.rand()),
-//                                                          0.5f * (1.0f + rs.rand())), 0.5f * rs.rand())));
-//            } else {
-//                d_list.push_back(createSphere(center, 0.2f, Dielectric(1.5f)));
+    auto sphere = createSphere(context, vec3(0.f, -1000.0f, -1.f), 1000.f);
+    SetMaterial(sphere, lambert, vec3(0.5f, 0.5f, 0.5f));
+
+    d_list.push_back(sphere);
+//
+//    for (int a = -11; a < 11; a++) {
+//        for (int b = -11; b < 11; b++) {
+//            float choose_mat = rs.rand();
+//            vec3 center(a + rs.rand(), 0.2f, b + rs.rand());
+//            if (choose_mat < 0.8f) {
+//                auto sphere = createSphere(context, center, 0.2f);
+//                SetMaterial(sphere, lambert, vec3(rs.rand() * rs.rand(), rs.rand() * rs.rand(), rs.rand() * rs.rand()));
+//                d_list.push_back(sphere);
 //            }
-        }
-    }
+////            else if (choose_mat < 0.95f) {
+////                d_list.push_back(createSphere(center, 0.2f,
+////                                              Metal(vec3f(0.5f * (1.0f + rs.rand()), 0.5f * (1.0f + rs.rand()),
+////                                                          0.5f * (1.0f + rs.rand())), 0.5f * rs.rand())));
+////            } else {
+////                d_list.push_back(createSphere(center, 0.2f, Dielectric(1.5f)));
+////            }
+//        }
+//    }
     //d_list.push_back(createSphere(vec3(0.f, 1.f, 0.f), 1.f, Dielectric(1.5f)));
     //d_list.push_back(createSphere(context, vec3(-4.f, 1.f, 0.f), 1.f, Lambertian(vec3(0.4f, 0.2f, 0.1f), lmat)));
     //d_list.push_back(createSphere(vec3(4.f, 1.f, 0.f), 1.f, Metal(vec3(0.7f, 0.6f, 0.5f), 0.0f)));
@@ -98,38 +101,130 @@ int main(int argc, char* argv[])
     int width = config->GetField("width")->GetInt();
     int height = config->GetField("height")->GetInt();
     const char *outfile_prefix = config->GetField("outfile_prefix")->GetStr();
+    const char *obj_file = config->GetField("obj")->GetStr();
 
     optix::Context ctx = optix::Context::create();
     ctx->setRayTypeCount(1);
     ctx->setStackSize(3000);
     ctx->setEntryPointCount(1);
 
+    optix::Program meshBoundsProgram = ctx->createProgramFromPTXString(mesh_program, "mesh_bounds");
+    optix::Program meshIntersectProgram = ctx->createProgramFromPTXString(mesh_program, "mesh_intersect");
+
+    optix::Group root = ctx->createGroup();
+    root->setAcceleration( ctx->createAcceleration( "Trbvh" ) );
+
+    auto matFactory = MakeMaterialFactory(ctx);
+
+    tinyobj::ObjReader obj;
+    tinyobj::ObjReaderConfig cfg;
+    cfg.vertex_color = false;
+    obj.ParseFromFile(obj_file, cfg);
+
+    std::vector<optix::Material> optix_materials;
+    auto mat = matFactory(Lambertian);
+    mat["albedo"]->setFloat(to_cuda(vec3(1.0, 0.2, 0.2)));
+
+    optix_materials.push_back(mat);
+
+    optix::GeometryGroup group = ctx->createGeometryGroup();
+    group->setAcceleration(ctx->createAcceleration("Trbvh"));
+
+    int num_positions = obj.GetAttrib().vertices.size() / 3;
+    int num_normals = obj.GetAttrib().normals.size() / 3;
+    int num_texcoords = obj.GetAttrib().texcoords.size() / 2;
+
+    auto positions = ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, num_positions);
+    auto normals = ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, num_normals);
+    auto texcoords = ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT2, num_texcoords);
+
+    {
+        auto p_positions = reinterpret_cast<float *>  ( positions->map());
+        auto p_normals = reinterpret_cast<float *>  ( num_normals > 0 ? normals->map() : 0 );
+        auto p_texcoords = reinterpret_cast<float *>  ( num_texcoords > 0 ? texcoords->map() : 0 );
+
+        memcpy(p_positions, obj.GetAttrib().vertices.data(), sizeof(float) * num_positions * 3);
+        if (num_texcoords > 0)
+            memcpy(p_texcoords, obj.GetAttrib().texcoords.data(), sizeof(float) * num_texcoords * 2);
+        if (num_normals > 0)
+            memcpy(p_normals, obj.GetAttrib().normals.data(), sizeof(float) * num_normals * 3);
+
+        positions->unmap();
+        if (num_texcoords > 0)
+            texcoords->unmap();
+        if (num_normals > 0)
+            normals->unmap();
+    }
+    for (auto& shape: obj.GetShapes())
+    {
+        int num_triangles = shape.mesh.indices.size() / 3;
+
+        auto tri_indices = ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_INT3, num_triangles * 3);
+        auto mat_indices = ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_INT, num_triangles);
+
+        auto p_tri_indices = reinterpret_cast<int32_t *>( tri_indices->map());
+        auto p_mat_indices = reinterpret_cast<int32_t *>( mat_indices->map());
+
+        auto mat_ids = shape.mesh.material_ids;
+
+        for (int i = 0; i < num_triangles; ++i)
+            mat_ids[i] = 0;
+
+        memcpy(p_tri_indices, shape.mesh.indices.data(), sizeof(tinyobj::index_t) * num_triangles * 3);
+        memcpy(p_mat_indices, mat_ids.data(), sizeof(int) * num_triangles);
+
+        tri_indices->unmap();
+        mat_indices->unmap();
+//        glm::aabb3 bbox;
+//        const auto& v = obj.GetAttrib().vertices;
+//        for (int i = 0;  i < shape.mesh.indices.size(); ++i)
+//        {
+//            bbox |= glm::vec3(v[3 * i + 0], v[3 * i + 1], v[3 * i + 2]);
+//        }
+
+        optix::Geometry geometry = ctx->createGeometry();
+        geometry["vertex_buffer"]->setBuffer(positions);
+        geometry["normal_buffer"]->setBuffer(normals);
+        geometry["texcoord_buffer"]->setBuffer(texcoords);
+        geometry["material_buffer"]->setBuffer(mat_indices);
+        geometry["index_buffer"]->setBuffer(tri_indices);
+        geometry->setPrimitiveCount(num_triangles);
+        geometry->setBoundingBoxProgram(meshBoundsProgram);
+        geometry->setIntersectionProgram(meshIntersectProgram);
+        auto geom_instance = ctx->createGeometryInstance(
+                geometry,
+                optix_materials.begin(),
+                optix_materials.end()
+        );
+        group->addChild(geom_instance);
+    }
+
+    root->addChild(group);
+
     optix::Program renderProgram = ctx->createProgramFromPTXString(render_program, "Render");
     optix::Program missProgram = ctx->createProgramFromPTXString(render_program, "Miss");
-    lambertianProgram = ctx->createProgramFromPTXString(materials_program, "lambertian_hit");
     sphereBBoxProgram = ctx->createProgramFromPTXString(sphere_program, "get_bounds");
     sphereIntersectProgram = ctx->createProgramFromPTXString(sphere_program, "hit_sphere");
 
     ctx->setRayGenerationProgram(0, renderProgram);
     ctx->setMissProgram(0, missProgram);
 
-    lmat = ctx->createMaterial();
-    lmat->setClosestHitProgram(0, lambertianProgram);
-
     optix::Buffer pixelBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
     pixelBuffer->setFormat(RT_FORMAT_FLOAT4);
     pixelBuffer->setSize(width, height);
 
-    optix::GeometryGroup world = createScene(ctx);
-    ctx["world"]->set(world);
+    optix::GeometryGroup world = createScene(ctx, matFactory);
+    root->addChild(world);
+
+    ctx["root"]->set(root);
 
     ctx["pixelBuffer"]->set(pixelBuffer);
-    ctx["camera_origin"]->setFloat(make_float3(0., 2., -10.));
+    ctx["camera_origin"]->setFloat(make_float3(0., 50., -100.));
     ctx["camera_lookat"]->setFloat(make_float3(0., 0., 0.));
     ctx["camera_up"]->setFloat(make_float3(0., 1., 0.));
     ctx["camera_vfov"]->setFloat(40.);
     ctx["camera_aperture"]->setFloat(0.2);
-    ctx["camera_focusDist"]->setFloat(length(vec3(10.0, 10.0, 0.0)));
+    ctx["camera_focusDist"]->setFloat(length(vec3(0.0, 50.0, 100.0)));
 
     int numSamples = config->GetField("sampleCount")->GetInt();
     ctx["numSamples"]->setInt(numSamples);

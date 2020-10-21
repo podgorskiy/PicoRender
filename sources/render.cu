@@ -12,7 +12,7 @@ rtDeclareVariable(uint2, launchDim, rtLaunchDim,   );
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
 rtDeclareVariable(RayPayload, ray_payload, rtPayload, );
 
-rtDeclareVariable(rtObject, world, , );
+rtDeclareVariable(rtObject, root, , );
 
 rtBuffer<float4, 2> pixelBuffer;
 
@@ -46,7 +46,7 @@ inline __device__ vec4 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
     for (; k < bounces; ++k)
     {
         ray_payload.rs = &rs;
-        rtTrace(world, ray, ray_payload);
+        rtTrace(root, ray, ray_payload);
         if (ray_payload.scatterEvent == RayPayload::rayDidntHitAnything)
         {
             light = missColor(ray);
