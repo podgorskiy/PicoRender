@@ -40,6 +40,6 @@ add_executable(PostProcess PostProcess/PostProcess.cpp ConfigReader.cpp fileio.c
 
 if(MSVC)
 else()
-	target_link_libraries(PicoRender PRIVATE pthread spdlog::spdlog yaml-cpp dl)
+	target_link_libraries(PicoRender PRIVATE pthread dl)
 	target_link_options(PicoRender PRIVATE -static-libstdc++ -flto)
 endif()
