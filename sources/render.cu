@@ -29,10 +29,10 @@ rtDeclareVariable(float,    camera_focusDist, , );
 
 inline __device__ vec3 missColor(const optix::Ray &ray)
 {
-  const vec3 unit_direction = normalize(ray.direction);
-  const scal t = 0.5*(unit_direction.y + 1.0);
-  const vec3 c = (scal(1.0) - t) * make_float3(1.0, 1.0, 1.0) + t * make_float3(0.5, 0.7, 1.0);
-  return c;
+    const vec3 unit_direction = normalize(ray.direction);
+    const scal t = 0.5 * (unit_direction.y + 1.0);
+    const vec3 c = (scal(1.0) - t) * make_float3(1.0, 1.0, 1.0) + t * make_float3(0.5, 0.7, 1.0);
+    return c;
 }
 
 

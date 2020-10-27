@@ -15,7 +15,10 @@ rtDeclareVariable(RayPayload, ray_payload, rtPayload, );
 rtDeclareVariable(rtObject, root, , );
 rtDeclareVariable(rtObject, root_uv, , );
 
-rtBuffer<float4, 2> pixelBuffer;
+rtBuffer<float4, 2> albedoBuffer;
+rtBuffer<float4, 2> normalBuffer;
+rtBuffer<float4, 2> giBuffer;
+rtBuffer<float4, 2> finalBuffer;
 
 rtDeclareVariable(int,      numSamples, , );
 rtDeclareVariable(int,      bounces, , );
@@ -30,19 +33,18 @@ rtDeclareVariable(float,    camera_focusDist, , );
 
 inline __device__ vec3 missColor(const optix::Ray &ray)
 {
-  const vec3 unit_direction = normalize(ray.direction);
-  const scal t = 0.5*(unit_direction.y + 1.0);
-  const vec3 c = (scal(1.0) - t) * make_float3(1.0, 1.0, 1.0) + t * make_float3(0.5, 0.7, 1.0);
-  return c;
+    return make_float3(1.0);
 }
 
 
-inline __device__ vec4 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
+inline __device__ vec4 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs, vec3& albedo_out, vec3& normal_out)
 {
     RayPayload ray_payload;
 
 	vec3 light = make_float3(0.0);
 	vec3 color = make_float3(1.0);
+	vec3 attenuation;
+
     int k = 0;
     for (; k < bounces; ++k)
     {
@@ -53,19 +55,34 @@ inline __device__ vec4 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
             light = missColor(ray);
             break;
         }
-        else if (length(color) < 0.01 || ray_payload.scatterEvent == RayPayload::rayGotCancelled)
+        else if (ray_payload.scatterEvent == RayPayload::rayGotBounced)
         {
-            break;
-        }
-        else
-        {
-            color *= ray_payload.attenuation;
+			attenuation = ray_payload.attenuation;
+            //color *= ray_payload.attenuation;
             ray = optix::make_Ray(
                     /* origin   : */ ray_payload.origin,
                     /* direction: */ ray_payload.direction,
                     /* ray type : */ 0,
                     /* tmin     : */ 1e-3f,
                     /* tmax     : */ RT_DEFAULT_MAX);
+
+			if (k == 0)
+			{
+				albedo_out = attenuation;
+				normal_out = ray_payload.normal;
+				attenuation = make_float3(1.0);
+			}
+            color = color * attenuation;
+
+            if (length(color) < 0.01)
+            {
+                break;
+            }
+        }
+        else
+        {
+            color = make_float3(0.0);
+            break;
         }
     }
     if (k != 0)
@@ -74,8 +91,21 @@ inline __device__ vec4 ComputeBounces(optix::Ray &ray, rnd::RandomState &rs)
     }
     else
     {
+		albedo_out = make_float3(0.);
+		normal_out = make_float3(0.);
         return make_float4(0.);
     }
+}
+
+
+__device__ vec3 pow(vec3 x, float e)
+{
+    return make_float3(powf(x.x, e), powf(x.y, e), powf(x.z, e));
+}
+
+__device__ vec4 pow(vec4 x, float e)
+{
+    return make_float4(powf(x.x, e), powf(x.y, e), powf(x.z, e), x.w);
 }
 
 
@@ -94,6 +124,9 @@ RT_PROGRAM void RenderUV()
             camera_up,
             camera_vfov, aspect, camera_aperture, camera_focusDist);
 
+    vec3 albedo = make_float3(0.);
+    vec3 normal = make_float3(0.);
+
     for (int s = 0; s < numSamples; s++)
     {
         int y_id = launchDim.y - pixelID.y - 1;
@@ -107,22 +140,40 @@ RT_PROGRAM void RenderUV()
                 /* tmin     : */ 1e-6f,
                 /* tmax     : */ RT_DEFAULT_MAX);
 
-        col += ComputeBounces(ray, rs);
-        // col += missColor(ray);
+        vec3 albedo_out;
+        vec3 normal_out;
+
+        col += ComputeBounces(ray, rs, albedo_out, normal_out);
+        albedo += albedo_out;
+        normal += normal_out;
     }
+    float c = col.w;
+
+    vec4 final;
     if (col.w > 0.)
     {
-        col = col / col.w;
-        col.x = powf(col.x, 1.0/ 2.2);
-        col.y = powf(col.y, 1.0/ 2.2);
-        col.z = powf(col.z, 1.0/ 2.2);
+        col /= c;
+        albedo /= c;
+        final = make_float4(make_float3(col.x, col.y, col.z) * albedo, 1.0);
+
+        col = pow(col, 1.0/ 2.2);
+        final = pow(final, 1.0/ 2.2);
+        albedo = pow(albedo, 1.0/ 2.2);
+        normal = normalize(normal);
     }
     else
     {
         col = make_float4(0.0);
+        final = make_float4(0.0);
+        albedo = make_float3(0.0);
+        normal = make_float3(0.0);
     }
 
-    pixelBuffer[pixelID] = col;
+    // pixelBuffer[pixelID] = col;
+    albedoBuffer[pixelID] = make_float4(albedo, col.w);
+    normalBuffer[pixelID] = make_float4(normal * 0.5 + make_float3(0.5), col.w);
+    giBuffer[pixelID] = col;
+    finalBuffer[pixelID] = final;
 }
 
 RT_PROGRAM void Miss()

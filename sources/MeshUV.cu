@@ -72,10 +72,7 @@ RT_PROGRAM void mesh_bounds_uv(int primIdx, float result[6]) {
     vec3 v0 = make_float3(texcoord_buffer[v_0.z], 0.);
     vec3 v1 = make_float3(texcoord_buffer[v_1.z], 0.);
     vec3 v2 = make_float3(texcoord_buffer[v_2.z], 0.);
-//
-//    const vec3 v0 = vertex_buffer[v_0.x];
-//    const vec3 v1 = vertex_buffer[v_1.x];
-//    const vec3 v2 = vertex_buffer[v_2.x];
+
     const float area = length(cross(v1 - v0, v2 - v0));
 
     optix::Aabb *aabb = (optix::Aabb *) result;

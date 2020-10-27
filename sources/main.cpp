@@ -12,12 +12,25 @@
 #include "main.h"
 #include "ConfigReader.h"
 
+#include <stb_image.h>
 #include <stb_image_write.h>
 
 extern "C" const char render_program[];
 extern "C" const char render_program_uv[];
 extern "C" const char mesh_program[];
 extern "C" const char mesh_program_uv[];
+
+
+void save_buffer(optix::Buffer buffer, const std::string& file)
+{
+    RTsize width;
+    RTsize height;
+    buffer->getSize(width, height);
+    auto *pixels = (const float *) buffer->map();
+    uint8_t *data8b = TOUINT8(pixels, 4 * width * height);
+    stbi_write_png(file.c_str(), width, height, 4, data8b, 0);
+    buffer->unmap();
+}
 
 
 int main(int argc, char* argv[])
@@ -28,6 +41,7 @@ int main(int argc, char* argv[])
     int height = config->GetField("height")->GetInt();
     const char *outfile_prefix = config->GetField("outfile_prefix")->GetStr();
     const char *obj_file = config->GetField("obj")->GetStr();
+    const char *texture_file = config->GetField("texture")->GetStr();
 
     optix::Context ctx = optix::Context::create();
     ctx->setRayTypeCount(1);
@@ -55,6 +69,33 @@ int main(int argc, char* argv[])
     std::vector<optix::Material> optix_materials;
     auto mat = matFactory(Lambertian);
     mat["albedo"]->setFloat(make_float3(0.8, 0.2, 0.2));
+
+    {
+        int nx = 512;
+        int ny = 512;
+        int channels = 0;
+        uint8_t* data = stbi_load(texture_file, &nx, &ny, &channels, 4);
+
+        optix::TextureSampler sampler = ctx->createTextureSampler();
+        sampler->setWrapMode(0, RT_WRAP_REPEAT);
+        sampler->setWrapMode(1, RT_WRAP_REPEAT);
+        sampler->setWrapMode(2, RT_WRAP_REPEAT);
+        sampler->setIndexingMode(RT_TEXTURE_INDEX_NORMALIZED_COORDINATES);
+        sampler->setReadMode(RT_TEXTURE_READ_NORMALIZED_FLOAT_SRGB);
+        sampler->setMaxAnisotropy(1.0f);
+        sampler->setMipLevelCount(1u);
+        sampler->setArraySize(1u);
+        optix::Buffer buffer = ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_BYTE4, nx, ny);
+        auto* buffer_data = static_cast<unsigned char *>( buffer->map());
+        memcpy(buffer_data, data, nx * ny * 4);
+        buffer->unmap();
+        free(data);
+
+        sampler->setBuffer(0u, 0u, buffer);
+        sampler->setFilteringModes(RT_FILTER_LINEAR, RT_FILTER_LINEAR, RT_FILTER_NONE);
+
+        mat["albedo_texture"]->setTextureSampler(sampler);
+    }
 
     optix_materials.push_back(mat);
 
@@ -152,14 +193,30 @@ int main(int argc, char* argv[])
     ctx->setRayGenerationProgram(0, renderProgram);
     ctx->setMissProgram(0, missProgram);
 
-    optix::Buffer pixelBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
-    pixelBuffer->setFormat(RT_FORMAT_FLOAT4);
-    pixelBuffer->setSize(width, height);
+    optix::Buffer albedoBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
+    albedoBuffer->setFormat(RT_FORMAT_FLOAT4);
+    albedoBuffer->setSize(width, height);
+
+    optix::Buffer normalBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
+    normalBuffer->setFormat(RT_FORMAT_FLOAT4);
+    normalBuffer->setSize(width, height);
+
+    optix::Buffer giBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
+    giBuffer->setFormat(RT_FORMAT_FLOAT4);
+    giBuffer->setSize(width, height);
+
+    optix::Buffer finalBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
+    finalBuffer->setFormat(RT_FORMAT_FLOAT4);
+    finalBuffer->setSize(width, height);
 
     ctx["root"]->set(root);
     ctx["root_uv"]->set(root_uv);
 
-    ctx["pixelBuffer"]->set(pixelBuffer);
+    ctx["albedoBuffer"]->set(albedoBuffer);
+    ctx["normalBuffer"]->set(normalBuffer);
+    ctx["giBuffer"]->set(giBuffer);
+    ctx["finalBuffer"]->set(finalBuffer);
+
     ctx["camera_origin"]->setFloat(make_float3(0., 0.5, -1.));
     ctx["camera_lookat"]->setFloat(make_float3(0., 0., 0.));
     ctx["camera_up"]->setFloat(make_float3(0., 1., 0.));
@@ -181,9 +238,8 @@ int main(int argc, char* argv[])
     spdlog::info("done rendering, which took {:.4} seconds (for {} paths per pixel and {} bounces)",
                  std::chrono::duration<double>(t1 - t0).count(), numSamples, bounces);
 
-    auto *pixels = (const float *) pixelBuffer->map();
-    uint8_t *data8b = TOUINT8(pixels, 4 * width * height);
-    std::string name("_out.png");
-    stbi_write_png((outfile_prefix + name).c_str(), width, height, 4, data8b, 0);
-    pixelBuffer->unmap();
+    save_buffer(albedoBuffer, std::string(outfile_prefix) + "_albedo.png");
+    save_buffer(normalBuffer, std::string(outfile_prefix) + "_normal.png");
+    save_buffer(giBuffer, std::string(outfile_prefix) + "_gi.png");
+    save_buffer(finalBuffer, std::string(outfile_prefix) + "_final.png");
 }

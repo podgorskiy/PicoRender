@@ -20,6 +20,7 @@ rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, );
 rtDeclareVariable(float3, hit_point, attribute hit_point, );
 rtDeclareVariable(float3, texcoord, attribute texcoord, );
 rtDeclareVariable(int,    uv_pass,          attribute uv_pass, );
+rtTextureSampler<float4, 2> albedo_texture;
 
 /*! and finally - that particular material's parameters */
 rtDeclareVariable(float3, albedo, , );
@@ -39,5 +40,10 @@ RT_PROGRAM void lambertian_hit()
     ray_payload.scatterEvent = RayPayload::rayGotBounced;
     ray_payload.direction = lambert_no_tangent(normal, ray_payload.rs);
     ray_payload.origin = hit_point;
-    ray_payload.attenuation = albedo;
+    ray_payload.normal = normal;
+
+
+    const vec3 Kd = make_float3( tex2D( albedo_texture, texcoord.x, texcoord.y ) );
+
+    ray_payload.attenuation = Kd;
 }
