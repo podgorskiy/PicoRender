@@ -201,6 +201,10 @@ int main(int argc, char* argv[])
     normalBuffer->setFormat(RT_FORMAT_FLOAT4);
     normalBuffer->setSize(width, height);
 
+    optix::Buffer bentNormalBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
+    bentNormalBuffer->setFormat(RT_FORMAT_FLOAT4);
+    bentNormalBuffer->setSize(width, height);
+
     optix::Buffer giBuffer = ctx->createBuffer(RT_BUFFER_OUTPUT);
     giBuffer->setFormat(RT_FORMAT_FLOAT4);
     giBuffer->setSize(width, height);
@@ -214,6 +218,7 @@ int main(int argc, char* argv[])
 
     ctx["albedoBuffer"]->set(albedoBuffer);
     ctx["normalBuffer"]->set(normalBuffer);
+    ctx["bentNormalBuffer"]->set(bentNormalBuffer);
     ctx["giBuffer"]->set(giBuffer);
     ctx["finalBuffer"]->set(finalBuffer);
 
@@ -240,6 +245,7 @@ int main(int argc, char* argv[])
 
     save_buffer(albedoBuffer, std::string(outfile_prefix) + "_albedo.png");
     save_buffer(normalBuffer, std::string(outfile_prefix) + "_normal.png");
+    save_buffer(bentNormalBuffer, std::string(outfile_prefix) + "_bent_normal.png");
     save_buffer(giBuffer, std::string(outfile_prefix) + "_gi.png");
     save_buffer(finalBuffer, std::string(outfile_prefix) + "_final.png");
 }
