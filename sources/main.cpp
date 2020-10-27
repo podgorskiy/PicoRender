@@ -15,55 +15,9 @@
 #include <stb_image_write.h>
 
 extern "C" const char render_program[];
-extern "C" const char sphere_program[];
+extern "C" const char render_program_uv[];
 extern "C" const char mesh_program[];
-
-
-optix::Program sphereBBoxProgram;
-optix::Program sphereIntersectProgram;
-
-void SetMaterial(optix::GeometryInstance gi, optix::Material mat, vec3 albedo)
-{
-    gi->setMaterialCount(1);
-    gi->setMaterial(/*ray type:*/0, mat);
-    gi["albedo"]->setFloat(albedo);
-}
-
-optix::GeometryInstance createSphere(optix::Context& context, const vec3 &center, const float radius)
-{
-    optix::Geometry geometry = context->createGeometry();
-    geometry->setPrimitiveCount(1);
-    geometry->setBoundingBoxProgram(sphereBBoxProgram);
-    geometry->setIntersectionProgram(sphereIntersectProgram);
-    geometry["center"]->setFloat(center.x, center.y, center.z);
-    geometry["radius"]->setFloat(radius);
-    optix::GeometryInstance gi = context->createGeometryInstance();
-    gi->setGeometry(geometry);
-    return gi;
-}
-
-optix::GeometryGroup createScene(optix::Context& context, const MatFactory& matFactory)
-{
-    rnd::RandomState rs;
-    std::vector<optix::GeometryInstance> d_list;
-
-    auto lambert = matFactory(Lambertian);
-
-    auto sphere = createSphere(context, make_float3(0.f, -1000.0f, -1.f), 1000.f);
-    SetMaterial(sphere, lambert, make_float3(0.5f, 0.5f, 0.5f));
-
-    d_list.push_back(sphere);
-
-    // now, create the optix world that contains all these GIs
-    optix::GeometryGroup d_world = context->createGeometryGroup();
-    d_world->setAcceleration(context->createAcceleration("Bvh"));
-    d_world->setChildCount((int) d_list.size());
-    for (int i = 0; i < d_list.size(); i++)
-        d_world->setChild(i, d_list[i]);
-
-    // that all we have to do, the rest is up to optix
-    return d_world;
-}
+extern "C" const char mesh_program_uv[];
 
 
 int main(int argc, char* argv[])
@@ -80,13 +34,18 @@ int main(int argc, char* argv[])
     ctx->setStackSize(3000);
     ctx->setEntryPointCount(1);
 
+    auto matFactory = MakeMaterialFactory(ctx);
+
     optix::Program meshBoundsProgram = ctx->createProgramFromPTXString(mesh_program, "mesh_bounds");
+    optix::Program meshBoundsProgramUV = ctx->createProgramFromPTXString(mesh_program_uv, "mesh_bounds_uv");
     optix::Program meshIntersectProgram = ctx->createProgramFromPTXString(mesh_program, "mesh_intersect");
+    optix::Program meshIntersectProgramUV = ctx->createProgramFromPTXString(mesh_program_uv, "mesh_intersect_uv");
 
     optix::Group root = ctx->createGroup();
-    root->setAcceleration( ctx->createAcceleration( "Trbvh" ) );
+    optix::Group root_uv = ctx->createGroup();
 
-    auto matFactory = MakeMaterialFactory(ctx);
+    root->setAcceleration( ctx->createAcceleration( "Trbvh" ) );
+    root_uv->setAcceleration( ctx->createAcceleration( "Trbvh" ) );
 
     tinyobj::ObjReader obj;
     tinyobj::ObjReaderConfig cfg;
@@ -100,7 +59,9 @@ int main(int argc, char* argv[])
     optix_materials.push_back(mat);
 
     optix::GeometryGroup group = ctx->createGeometryGroup();
+    optix::GeometryGroup group_uv = ctx->createGeometryGroup();
     group->setAcceleration(ctx->createAcceleration("Trbvh"));
+    group_uv->setAcceleration(ctx->createAcceleration("Trbvh"));
 
     int num_positions = obj.GetAttrib().vertices.size() / 3;
     int num_normals = obj.GetAttrib().normals.size() / 3;
@@ -163,14 +124,30 @@ int main(int argc, char* argv[])
                 optix_materials.end()
         );
         group->addChild(geom_instance);
+
+        optix::Geometry geometry_uv = ctx->createGeometry();
+        geometry_uv["vertex_buffer"]->setBuffer(positions);
+        geometry_uv["normal_buffer"]->setBuffer(normals);
+        geometry_uv["texcoord_buffer"]->setBuffer(texcoords);
+        geometry_uv["material_buffer"]->setBuffer(mat_indices);
+        geometry_uv["index_buffer"]->setBuffer(tri_indices);
+        geometry_uv->setPrimitiveCount(num_triangles);
+        geometry_uv->setBoundingBoxProgram(meshBoundsProgramUV);
+        geometry_uv->setIntersectionProgram(meshIntersectProgramUV);
+        auto geom_instance_uv = ctx->createGeometryInstance(
+                geometry_uv,
+                optix_materials.begin(),
+                optix_materials.end()
+        );
+        group_uv->addChild(geom_instance_uv);
     }
 
     root->addChild(group);
+    root_uv->addChild(group_uv);
 
-    optix::Program renderProgram = ctx->createProgramFromPTXString(render_program, "Render");
+    //optix::Program renderProgram = ctx->createProgramFromPTXString(render_program, "Render");
+    optix::Program renderProgram = ctx->createProgramFromPTXString(render_program_uv, "RenderUV");
     optix::Program missProgram = ctx->createProgramFromPTXString(render_program, "Miss");
-    sphereBBoxProgram = ctx->createProgramFromPTXString(sphere_program, "get_bounds");
-    sphereIntersectProgram = ctx->createProgramFromPTXString(sphere_program, "hit_sphere");
 
     ctx->setRayGenerationProgram(0, renderProgram);
     ctx->setMissProgram(0, missProgram);
@@ -179,18 +156,16 @@ int main(int argc, char* argv[])
     pixelBuffer->setFormat(RT_FORMAT_FLOAT4);
     pixelBuffer->setSize(width, height);
 
-    optix::GeometryGroup world = createScene(ctx, matFactory);
-    root->addChild(world);
-
     ctx["root"]->set(root);
+    ctx["root_uv"]->set(root_uv);
 
     ctx["pixelBuffer"]->set(pixelBuffer);
-    ctx["camera_origin"]->setFloat(make_float3(0., 50., -100.));
+    ctx["camera_origin"]->setFloat(make_float3(0., 0.5, -1.));
     ctx["camera_lookat"]->setFloat(make_float3(0., 0., 0.));
     ctx["camera_up"]->setFloat(make_float3(0., 1., 0.));
     ctx["camera_vfov"]->setFloat(config->GetField("camera_vfov")->GetFloat());
     ctx["camera_aperture"]->setFloat(config->GetField("camera_aperture")->GetFloat());
-    ctx["camera_focusDist"]->setFloat(length(make_float3(0.0, 50.0, 100.0)));
+    ctx["camera_focusDist"]->setFloat(length(make_float3(0.0, .5, 1.0)));
 
     int numSamples = config->GetField("sampleCount")->GetInt();
     ctx["numSamples"]->setInt(numSamples);

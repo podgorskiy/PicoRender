@@ -64,17 +64,21 @@ cuda_compile_and_embed(
   render_program sources/render.cu
 )
 cuda_compile_and_embed(
-  materials_program sources/Materials.cu
+  render_program_uv sources/render_uv.cu
 )
 cuda_compile_and_embed(
-  sphere_program sources/sphere.cu
+  materials_program sources/Materials.cu
 )
 
 cuda_compile_and_embed(
   mesh_program sources/Mesh.cu
 )
 
-add_executable(PicoRender ${SOURCES} ${render_program} ${materials_program} ${sphere_program} ${mesh_program})
+cuda_compile_and_embed(
+  mesh_program_uv sources/MeshUV.cu
+)
+
+add_executable(PicoRender ${SOURCES} ${render_program} ${render_program_uv} ${materials_program} ${sphere_program} ${mesh_program} ${mesh_program_uv})
 
 target_link_libraries(PicoRender PRIVATE spdlog::spdlog yaml-cpp tinyobjloader ${optix_LIBRARY})
 

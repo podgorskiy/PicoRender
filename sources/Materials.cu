@@ -19,6 +19,7 @@ rtDeclareVariable(float3, shading_normal, attribute shading_normal, );
 rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, );
 rtDeclareVariable(float3, hit_point, attribute hit_point, );
 rtDeclareVariable(float3, texcoord, attribute texcoord, );
+rtDeclareVariable(int,    uv_pass,          attribute uv_pass, );
 
 /*! and finally - that particular material's parameters */
 rtDeclareVariable(float3, albedo, , );
@@ -26,8 +27,15 @@ rtDeclareVariable(float3, albedo, , );
 
 RT_PROGRAM void lambertian_hit()
 {
-    const vec3 normal = faceforward( shading_normal, -ray.direction, geometric_normal );
-
+    vec3 normal;
+    if (uv_pass == 0)
+    {
+        normal = faceforward(shading_normal, -ray.direction, geometric_normal);
+    }
+    else
+    {
+        normal = shading_normal;
+    }
     ray_payload.scatterEvent = RayPayload::rayGotBounced;
     ray_payload.direction = lambert_no_tangent(normal, ray_payload.rs);
     ray_payload.origin = hit_point;
