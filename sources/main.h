@@ -13,3 +13,18 @@ uint8_t *TOUINT8(const T* data, int size) {
     }
     return out;
 }
+
+inline vec2 make_float2(glm::vec2 v)
+{
+    vec2 t; t.x = v.x; t.y = v.y; return t;
+}
+
+inline vec3 make_float3(glm::vec3 v)
+{
+    vec3 t; t.x = v.x; t.y = v.y; t.z = v.z; return t;
+}
+
+inline vec4 make_float4(glm::vec4 v)
+{
+    vec4 t; t.x = v.x; t.y = v.y; t.z = v.z; t.w = v.w; return t;
+}

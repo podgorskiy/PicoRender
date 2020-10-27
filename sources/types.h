@@ -3,6 +3,7 @@
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_vector_types.h>
 #include <inttypes.h>
+#include <glm/glm.hpp>
 
 #if defined(__CUDACC__)
 #define CUDA_HOST __host__

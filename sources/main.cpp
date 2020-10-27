@@ -10,6 +10,7 @@
 #include <tiny_obj_loader.h>
 
 #include "main.h"
+#include "aabb.h"
 #include "ConfigReader.h"
 
 #include <stb_image.h>
@@ -42,6 +43,8 @@ int main(int argc, char* argv[])
     const char *outfile_prefix = config->GetField("outfile_prefix")->GetStr();
     const char *obj_file = config->GetField("obj")->GetStr();
     const char *texture_file = config->GetField("texture")->GetStr();
+
+	bool renderInTex = config->GetField("renderInTex")->GetBool();
 
     optix::Context ctx = optix::Context::create();
     ctx->setRayTypeCount(1);
@@ -186,8 +189,16 @@ int main(int argc, char* argv[])
     root->addChild(group);
     root_uv->addChild(group_uv);
 
-    //optix::Program renderProgram = ctx->createProgramFromPTXString(render_program, "Render");
-    optix::Program renderProgram = ctx->createProgramFromPTXString(render_program_uv, "RenderUV");
+    optix::Program renderProgram;
+    if (renderInTex)
+    {
+        renderProgram = ctx->createProgramFromPTXString(render_program_uv, "RenderUV");
+    }
+    else
+    {
+        renderProgram = ctx->createProgramFromPTXString(render_program, "Render");
+    }
+
     optix::Program missProgram = ctx->createProgramFromPTXString(render_program, "Miss");
 
     ctx->setRayGenerationProgram(0, renderProgram);
@@ -222,12 +233,22 @@ int main(int argc, char* argv[])
     ctx["giBuffer"]->set(giBuffer);
     ctx["finalBuffer"]->set(finalBuffer);
 
-    ctx["camera_origin"]->setFloat(make_float3(0., 0.5, -1.));
-    ctx["camera_lookat"]->setFloat(make_float3(0., 0., 0.));
+
+    glm::aabb3 box;
+    for (int i = 0; i < obj.GetAttrib().vertices.size(); i += 3)
+    {
+        box |= glm::vec3(obj.GetAttrib().vertices[i + 0], obj.GetAttrib().vertices[i + 1], obj.GetAttrib().vertices[i + 2]);
+    }
+
+    auto co = glm::vec3(0.2, 0.5, -1.) * box.size() * 2.5f;
+    auto ce = box.center();
+    ctx["camera_origin"]->setFloat(make_float3(co));
+
+    ctx["camera_lookat"]->setFloat(make_float3(ce));
     ctx["camera_up"]->setFloat(make_float3(0., 1., 0.));
     ctx["camera_vfov"]->setFloat(config->GetField("camera_vfov")->GetFloat());
     ctx["camera_aperture"]->setFloat(config->GetField("camera_aperture")->GetFloat());
-    ctx["camera_focusDist"]->setFloat(length(make_float3(0.0, .5, 1.0)));
+    ctx["camera_focusDist"]->setFloat(length(make_float3(co - ce)));
 
     int numSamples = config->GetField("sampleCount")->GetInt();
     ctx["numSamples"]->setInt(numSamples);
